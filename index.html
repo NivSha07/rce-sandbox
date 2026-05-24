@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RCE Sandbox</title>
+    <style>
+        body { background-color: #1e1e1e; color: #d4d4d4; font-family: monospace; padding: 20px; }
+        textarea { width: 100%; background: #2d2d2d; color: #fff; border: 1px solid #444; padding: 10px; font-family: monospace; }
+        button { background: #007acc; color: white; border: none; padding: 10px 20px; cursor: pointer; margin-top: 10px; }
+        pre { background: #000; padding: 15px; border: 1px solid #444; min-height: 50px; }
+    </style>
+</head>
+<body>
+    <h2>RCE Sandbox</h2>
+    
+    <textarea id="sourceCode" rows="15">
+#include<iostream>
+using namespace std;
+int main(){
+    int t; 
+    cin >> t; 
+    cout << t * 10;
+    return 0;
+}</textarea>
+    
+    <h3>Standard Input</h3>
+    <textarea id="stdInput" rows="3">5</textarea>
+    
+    <button onclick="runCode()">Run Code</button>
+    
+    <h3>Console Output</h3>
+    <pre id="consoleOutput">Awaiting execution...</pre>
+
+    <script src="script.js"></script>
+</body>
+</html>

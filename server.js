@@ -1,32 +1,32 @@
-const ex = require('express');
+const express = require('express');
 const fs = require('fs');
-const cx = require('child_process').exec;
-const cs = require('cors');
+const exec = require('child_process').exec;
+const cors = require('cors');
 
-const ap = ex();
-ap.use(cs());
-ap.use(ex.json());
+const app = express();
+app.use(cors());
+app.use(express.json());
 
-ap.post('/rn', (rq, rs) => {
-    let cd = rq.body.cd;
-    let ip = rq.body.ip || "";
-    let fn = `t_${Date.now()}`;
-    let cp = `${fn}.cpp`;
-    let tx = `${fn}.txt`;
-    let ot = `${fn}.exe`; // Changed to .exe for Windows
+app.post('/run', (req, res) => {
+    let sourceCode = req.body.code;
+    let standardInput = req.body.input || "";
+    
+    let baseFilename = `temp_${Date.now()}`;
+    let cppFilePath = `${baseFilename}.cpp`;
+    let inputFilePath = `${baseFilename}.txt`;
+    let exeFilePath = `${baseFilename}.exe`;
 
-    fs.writeFileSync(cp, cd);
-    fs.writeFileSync(tx, ip);
+    fs.writeFileSync(cppFilePath, sourceCode);
+    fs.writeFileSync(inputFilePath, standardInput);
 
-    cx(`g++ ${cp} -o ${ot}`, (e1, s1, er1) => {
-        if(e1) return rs.status(400).send({er: er1});
+    exec(`g++ ${cppFilePath} -o ${exeFilePath}`, (compileError, stdout1, stderr1) => {
+        if (compileError) return res.status(400).send({ error: stderr1 });
         
-        // Removed the ./ so Windows cmd can run it
-        cx(`${ot} < ${tx}`, (e2, s2, er2) => {
-            if(e2) return rs.status(400).send({er: er2});
-            rs.send({ou: s2});
+        exec(`${exeFilePath} < ${inputFilePath}`, (runError, stdout2, stderr2) => {
+            if (runError) return res.status(400).send({ error: stderr2 });
+            res.send({ output: stdout2 });
         });
     });
 });
 
-ap.listen(3000);
+app.listen(3000);
