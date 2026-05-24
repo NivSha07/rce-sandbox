@@ -5,10 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RCE Sandbox</title>
     <style>
-        /* Modern Color Palette */
         :root {
             --bg-color: #0f111a;
-            --panel-bg: #1a1c29;
+            --panel-bg: #1e1e1e;
             --text-main: #e2e8f0;
             --text-muted: #a6accd;
             --accent: #3b82f6;
@@ -21,33 +20,20 @@
             padding: 20px;
             background-color: var(--bg-color);
             color: var(--text-main);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
             display: flex;
             flex-direction: column;
             height: 100vh;
             box-sizing: border-box;
         }
 
-        header {
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--border);
-        }
+        header { margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+        header h2 { margin: 0; font-weight: 500; }
 
-        header h2 { margin: 0; font-weight: 500; letter-spacing: 1px; }
-
-        /* Two-Column Layout */
-        .container {
-            display: flex;
-            gap: 20px;
-            flex: 1;
-            min-height: 0; /* Forces children to respect container boundaries */
-        }
-
+        .container { display: flex; gap: 20px; flex: 1; min-height: 0; }
         .left-panel { flex: 6; display: flex; flex-direction: column; }
         .right-panel { flex: 4; display: flex; flex-direction: column; gap: 15px; }
 
-        /* Styled Boxes for Editor/Input/Output */
         .box {
             background: var(--panel-bg);
             border: 1px solid var(--border);
@@ -63,21 +49,18 @@
             padding: 10px 15px;
             font-size: 0.85rem;
             text-transform: uppercase;
-            letter-spacing: 1px;
             color: var(--text-muted);
             border-bottom: 1px solid var(--border);
         }
 
-        /* Typography for Code */
         textarea, pre {
             width: 100%;
             background: transparent;
-            color: #c3e88d; /* A nice code-editor green */
+            color: #c3e88d;
             border: none;
             padding: 15px;
-            font-family: 'Consolas', 'Courier New', monospace;
+            font-family: 'Consolas', monospace;
             font-size: 15px;
-            line-height: 1.5;
             resize: none;
             box-sizing: border-box;
             outline: none;
@@ -85,9 +68,10 @@
 
         .left-panel .box { flex: 1; }
         textarea { flex: 1; }
-        pre { margin: 0; flex: 1; overflow-y: auto; color: #82aaff; } /* Blue for output */
+        pre { margin: 0; flex: 1; overflow-y: auto; color: #82aaff; }
 
-        /* The Run Button */
+        #editorContainer { flex: 1; width: 100%; min-height: 0; }
+
         button {
             background: var(--accent);
             color: white;
@@ -98,19 +82,12 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
         }
+        button:hover { background: var(--accent-hover); }
 
-        button:hover {
-            background: var(--accent-hover);
-            transform: translateY(-1px);
-        }
-
-        /* Custom Scrollbars */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: var(--bg-color); }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #4a5568; }
     </style>
 </head>
 <body>
@@ -123,15 +100,7 @@
         <div class="left-panel">
             <div class="box">
                 <div class="box-header">source.cpp</div>
-                <textarea id="sourceCode" spellcheck="false">
-#include<iostream>
-using namespace std;
-int main(){
-    int t; 
-    cin >> t; 
-    cout << t * 10;
-    return 0;
-}</textarea>
+                <div id="editorContainer"></div>
             </div>
         </div>
 
@@ -150,6 +119,21 @@ int main(){
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.38.0/min/vs/loader.min.js"></script>
+    <script>
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.38.0/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            window.editor = monaco.editor.create(document.getElementById('editorContainer'), {
+                value: "#include<iostream>\nusing namespace std;\nint main(){\n    int t; \n    cin >> t; \n    cout << t * 10;\n    return 0;\n}",
+                language: 'cpp',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                fontSize: 15
+            });
+        });
+    </script>
+    
     <script src="script.js"></script>
 </body>
 </html>

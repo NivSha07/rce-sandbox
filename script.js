@@ -1,5 +1,5 @@
 async function runCode() {
-    let sourceCode = document.getElementById('sourceCode').value;
+    let sourceCode = window.editor.getValue();
     let stdInput = document.getElementById('stdInput').value;
     let consoleOutput = document.getElementById('consoleOutput');
     
@@ -14,11 +14,8 @@ async function runCode() {
         
         let data = await response.json();
         
-        if (data.error) {
-            consoleOutput.innerText = data.error;
-        } else {
-            consoleOutput.innerText = data.output;
-        }
+        if (data.error) consoleOutput.innerText = data.error;
+        else consoleOutput.innerText = data.output;
     } catch (err) {
         consoleOutput.innerText = "Server offline. Make sure node server.js is running.";
     }
