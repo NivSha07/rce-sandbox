@@ -51,9 +51,11 @@
             text-transform: uppercase;
             color: var(--text-muted);
             border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        /* NEW: Toolbar CSS */
         .toolbar {
             background: #23273b;
             padding: 8px 15px;
@@ -105,6 +107,21 @@
         }
         button:hover { background: var(--accent-hover); }
 
+        /* NEW: Expandable Expected Output CSS */
+        details { border-top: 1px solid var(--border); }
+        summary {
+            padding: 10px 15px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            user-select: none;
+            background: #1e1e1e;
+        }
+        summary:hover { color: var(--text-main); }
+        #expectedOutput { height: 80px; border-top: 1px solid var(--border); color: #ffcb6b; } /* Yellow for expected text */
+        
+        #statusBadge { font-weight: bold; font-size: 0.9rem; }
+
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: var(--bg-color); }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
@@ -141,15 +158,23 @@
         </div>
 
         <div class="right-panel">
-            <div class="box" style="flex: 0.3;">
+            <div class="box" style="flex: 0.4;">
                 <div class="box-header">Standard Input</div>
                 <textarea id="stdInput" spellcheck="false">5</textarea>
+                
+                <details>
+                    <summary>Add Expected Output (Optional Test Case)</summary>
+                    <textarea id="expectedOutput" spellcheck="false" placeholder="Enter expected output here to verify against actual output..."></textarea>
+                </details>
             </div>
             
             <button onclick="runCode()">Run Execution</button>
             
-            <div class="box" style="flex: 0.7;">
-                <div class="box-header">Console Output</div>
+            <div class="box" style="flex: 0.6;">
+                <div class="box-header">
+                    Console Output 
+                    <span id="statusBadge"></span>
+                </div>
                 <pre id="consoleOutput">Awaiting execution...</pre>
             </div>
         </div>
