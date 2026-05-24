@@ -20,3 +20,13 @@ async function runCode() {
         consoleOutput.innerText = "Server offline. Make sure node server.js is running.";
     }
 }
+
+function changeTheme() {
+    let selectedTheme = document.getElementById('themeSelect').value;
+    monaco.editor.setTheme(selectedTheme);
+}
+
+function changeFontSize() {
+    let newSize = parseInt(document.getElementById('fontSizeInput').value);
+    window.editor.updateOptions({ fontSize: newSize });
+}

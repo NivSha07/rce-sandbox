@@ -53,6 +53,26 @@
             border-bottom: 1px solid var(--border);
         }
 
+        /* NEW: Toolbar CSS */
+        .toolbar {
+            background: #23273b;
+            padding: 8px 15px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        .toolbar select, .toolbar input {
+            background: #1a1c29;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: inherit;
+            outline: none;
+        }
+        .toolbar label { font-size: 0.85rem; color: var(--text-muted); }
+
         textarea, pre {
             width: 100%;
             background: transparent;
@@ -100,6 +120,22 @@
         <div class="left-panel">
             <div class="box">
                 <div class="box-header">source.cpp</div>
+                
+                <div class="toolbar">
+                    <div>
+                        <label>Theme: </label>
+                        <select id="themeSelect" onchange="changeTheme()">
+                            <option value="vs-dark">Dark</option>
+                            <option value="vs">Light</option>
+                            <option value="hc-black">High Contrast</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Font Size: </label>
+                        <input type="number" id="fontSizeInput" value="15" min="10" max="30" style="width: 50px;" onchange="changeFontSize()">
+                    </div>
+                </div>
+
                 <div id="editorContainer"></div>
             </div>
         </div>
