@@ -1,18 +1,129 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RCE Sandbox</title>
     <style>
-        body { background-color: #1e1e1e; color: #d4d4d4; font-family: monospace; padding: 20px; }
-        textarea { width: 100%; background: #2d2d2d; color: #fff; border: 1px solid #444; padding: 10px; font-family: monospace; }
-        button { background: #007acc; color: white; border: none; padding: 10px 20px; cursor: pointer; margin-top: 10px; }
-        pre { background: #000; padding: 15px; border: 1px solid #444; min-height: 50px; }
+        /* Modern Color Palette */
+        :root {
+            --bg-color: #0f111a;
+            --panel-bg: #1a1c29;
+            --text-main: #e2e8f0;
+            --text-muted: #a6accd;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --border: #2e344e;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        header {
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        header h2 { margin: 0; font-weight: 500; letter-spacing: 1px; }
+
+        /* Two-Column Layout */
+        .container {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+            min-height: 0; /* Forces children to respect container boundaries */
+        }
+
+        .left-panel { flex: 6; display: flex; flex-direction: column; }
+        .right-panel { flex: 4; display: flex; flex-direction: column; gap: 15px; }
+
+        /* Styled Boxes for Editor/Input/Output */
+        .box {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .box-header {
+            background: #23273b;
+            padding: 10px 15px;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Typography for Code */
+        textarea, pre {
+            width: 100%;
+            background: transparent;
+            color: #c3e88d; /* A nice code-editor green */
+            border: none;
+            padding: 15px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 15px;
+            line-height: 1.5;
+            resize: none;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        .left-panel .box { flex: 1; }
+        textarea { flex: 1; }
+        pre { margin: 0; flex: 1; overflow-y: auto; color: #82aaff; } /* Blue for output */
+
+        /* The Run Button */
+        button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+        }
+
+        button:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-color); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4a5568; }
     </style>
 </head>
 <body>
-    <h2>RCE Sandbox</h2>
-    
-    <textarea id="sourceCode" rows="15">
+
+    <header>
+        <h2>RCE Execution Environment</h2>
+    </header>
+
+    <div class="container">
+        <div class="left-panel">
+            <div class="box">
+                <div class="box-header">source.cpp</div>
+                <textarea id="sourceCode" spellcheck="false">
 #include<iostream>
 using namespace std;
 int main(){
@@ -21,14 +132,23 @@ int main(){
     cout << t * 10;
     return 0;
 }</textarea>
-    
-    <h3>Standard Input</h3>
-    <textarea id="stdInput" rows="3">5</textarea>
-    
-    <button onclick="runCode()">Run Code</button>
-    
-    <h3>Console Output</h3>
-    <pre id="consoleOutput">Awaiting execution...</pre>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="box" style="flex: 0.3;">
+                <div class="box-header">Standard Input</div>
+                <textarea id="stdInput" spellcheck="false">5</textarea>
+            </div>
+            
+            <button onclick="runCode()">Run Execution</button>
+            
+            <div class="box" style="flex: 0.7;">
+                <div class="box-header">Console Output</div>
+                <pre id="consoleOutput">Awaiting execution...</pre>
+            </div>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>
