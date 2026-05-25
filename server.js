@@ -1,6 +1,6 @@
 const express = require('express');
 const fs = require('fs');
-const exec = require('child_process').exec;
+const net = require('net');
 const cors = require('cors');
 
 const app = express();
@@ -10,56 +10,54 @@ app.use(express.json());
 app.post('/run', (req, res) => {
     let { code, input, language } = req.body;
     let baseFilename = `temp_${Date.now()}`;
-    
-    let command = "";
     let filesToClean = [];
 
-    // ROUTE 1: C++
-    if (language === 'cpp') {
-        fs.writeFileSync(`${baseFilename}.cpp`, code);
-        fs.writeFileSync(`${baseFilename}.txt`, input || "");
-        filesToClean.push(`${baseFilename}.cpp`, `${baseFilename}.txt`, `${baseFilename}.out`);
-        
-        command = `docker run --rm -v "${__dirname}:/usr/src/app" -w /usr/src/app gcc:latest bash -c "g++ ${baseFilename}.cpp -o ${baseFilename}.out && timeout 5s ./${baseFilename}.out < ${baseFilename}.txt"`;
-    } 
-    // ROUTE 2: Python
-    else if (language === 'python') {
-        fs.writeFileSync(`${baseFilename}.py`, code);
-        fs.writeFileSync(`${baseFilename}.txt`, input || "");
-        filesToClean.push(`${baseFilename}.py`, `${baseFilename}.txt`);
-        
-        command = `docker run --rm -v "${__dirname}:/usr/src/app" -w /usr/src/app python:latest bash -c "timeout 5s python ${baseFilename}.py < ${baseFilename}.txt"`;
-    }
-    // ROUTE 3: Java
-    else if (language === 'java') {
+    if (language === 'java') {
         let javaDir = `${__dirname}/${baseFilename}`;
-        fs.mkdirSync(javaDir); // Java needs an isolated directory to compile safely
+        fs.mkdirSync(javaDir); 
         fs.writeFileSync(`${javaDir}/Main.java`, code);
         fs.writeFileSync(`${javaDir}/input.txt`, input || "");
         filesToClean.push(javaDir);
-        
-        command = `docker run --rm -v "${javaDir}:/usr/src/app" -w /usr/src/app eclipse-temurin:latest bash -c "javac Main.java && timeout 5s java Main < input.txt"`;
+    } else {
+        let ext = language === 'javascript' ? 'js' : language === 'python' ? 'py' : language === 'rust' ? 'rs' : 'cpp';
+        fs.writeFileSync(`${baseFilename}.${ext}`, code);
+        fs.writeFileSync(`${baseFilename}.txt`, input || "");
+        filesToClean.push(`${baseFilename}.${ext}`, `${baseFilename}.txt`, `${baseFilename}.out`, `${baseFilename}.exe`, baseFilename);
     }
 
-    exec(command, (error, stdout, stderr) => {
-        // Cleanup Phase
+    // Connect to C++ TCP Daemon
+    let client = new net.Socket();
+    client.connect(8080, '127.0.0.1', () => {
+        client.write(`${language}|${baseFilename}`);
+    });
+
+    client.on('data', (data) => {
+        let response = data.toString();
+        let delim = response.indexOf('|');
+        let timeTaken = response.substring(0, delim);
+        let output = response.substring(delim + 1).trim();
+
+        // Cleanup
         if (language === 'java') {
-            fs.rmSync(`${__dirname}/${baseFilename}`, { recursive: true, force: true });
+            if (fs.existsSync(`${__dirname}/${baseFilename}`)) fs.rmSync(`${__dirname}/${baseFilename}`, { recursive: true, force: true });
         } else {
             filesToClean.forEach(f => { if (fs.existsSync(f)) fs.unlinkSync(f); });
         }
-        
-        // Error Handling
-        if (error) {
-            let errorMsg = stderr || error.message;
-            if (errorMsg.includes('timeout') || error.killed) {
-                return res.status(400).send({ error: "Execution Timed Out: Possible infinite loop detected." });
-            }
-            return res.status(400).send({ error: errorMsg });
+
+        if (output.includes('timeout') || output.includes('Killed')) {
+            return res.status(400).send({ error: "Execution Timed Out.", time: timeTaken });
         }
-        
-        res.send({ output: stdout });
+        if (output.includes('error:') || output.includes('Exception')) {
+            return res.status(400).send({ error: output, time: timeTaken });
+        }
+
+        res.send({ output: output, time: timeTaken });
+        client.destroy();
+    });
+
+    client.on('error', (err) => {
+        res.status(500).send({ error: "Judge Daemon Offline. Start judge.exe." });
     });
 });
 
-app.listen(3000);
+app.listen(3000, () => console.log("Node Gateway on Port 3000"));
