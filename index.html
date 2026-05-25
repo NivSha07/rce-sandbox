@@ -60,7 +60,10 @@ body.nmd #chartBox{display:none !important;}
     RCE Execution Environment
     <button onclick="openSettings()" style="padding:6px 12px;font-size:0.8rem;background:#4ade80;color:#0f111a;">⚙️ Boilerplate Settings</button>
 </h2>
-<div style="display:flex; gap:10px;">
+<div style="display:flex; align-items:center; gap:10px;">
+    <div id="uBx">
+        <button onclick="lg()" style="padding:8px 15px;font-size:0.9rem;background:#24292e;">Google Login</button>
+    </div>
     <button id="vBtn" onclick="toggleVis()" style="padding:8px 15px;font-size:0.9rem;background:var(--accent);">📊 Visualizer: ON</button>
     <button id="mBtn" onclick="toggleMode()" style="padding:8px 15px;font-size:0.9rem;background:#2e344e;">Normal Mode</button>
 </div>
@@ -125,10 +128,15 @@ require(['vs/editor/editor.main'],function(){
     window.editor=monaco.editor.create(document.getElementById('editorContainer'),{
         value:"", language:'cpp',theme:'vs-dark',automaticLayout:true,minimap:{enabled:false},fontSize:15
     });
-    window.editor.onDidChangeModelContent(() => { if (typeof saveState === 'function') saveState(); });
-    setTimeout(initApp, 100); 
+    window.editor.onDidChangeModelContent(() => { if(window.saveState) window.saveState(); });
+    let ci = setInterval(() => {
+        if(window.initApp){
+            window.initApp();
+            clearInterval(ci);
+        }
+    }, 100);
 });
 </script>
-<script src="script.js"></script>
+<script type="module" src="script.js"></script>
 </body>
 </html>
