@@ -37,6 +37,14 @@ summary:hover{color:var(--text-main);}
 .p-desc{padding:15px;line-height:1.6;font-size:0.95rem;}
 .p-desc h3{margin-top:0;color:var(--accent);}
 .p-desc code{background:#1a1c29;padding:2px 6px;border-radius:4px;font-family:'Consolas',monospace;color:#ffcb6b;}
+*{transition:background-color 0.2s ease,border-color 0.2s ease,color 0.2s ease,box-shadow 0.2s ease;}
+.cnt>div{transition:flex 0.4s cubic-bezier(0.4,0,0.2,1),opacity 0.3s ease;}
+button{box-shadow:0 4px 6px -1px rgba(59,130,246,0.2),0 2px 4px -1px rgba(59,130,246,0.1);}
+button:hover{transform:translateY(-2px);box-shadow:0 10px 15px -3px rgba(59,130,246,0.3),0 4px 6px -2px rgba(59,130,246,0.15);}
+button:active{transform:translateY(0);}
+textarea:focus,select:focus,input:focus{box-shadow:inset 0 0 0 1px var(--accent);}
+details summary{transition:background-color 0.2s ease;}
+details[open] summary{background-color:#23273b;border-bottom:1px solid var(--border);}
 body.nmd .p-pan{display:none;}
 body.nmd .e-pan{flex:6;}
 body.nmd .r-pan{flex:4;}
@@ -66,6 +74,7 @@ Problem
 <div class="bx">
 <div class="b-hdr">source.cpp</div>
 <div class="t-bar">
+<div><label>Lang: </label><select id="lSel" onchange="chL()"><option value="cpp">C++</option><option value="python">Python</option><option value="java">Java</option></select></div>
 <div><label>Theme: </label><select id="tSel" onchange="chT()"><option value="vs-dark">Dark</option><option value="vs">Light</option><option value="hc-black">High Contrast</option></select></div>
 <div><label>Font: </label><input type="number" id="fInp" value="15" min="10" max="30" style="width:50px;" onchange="chF()"></div>
 </div>
