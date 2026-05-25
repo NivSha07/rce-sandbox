@@ -154,53 +154,60 @@ async function runCode() {
             let r = await fetch('http://localhost:3000/run', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code: s, input: i, language: l })
+                body: JSON.stringify({ code: s, inputs: [i], language: l })
             });
             let d = await r.json();
-            if (d.error) {
-                o.innerText = d.error;
-                b.innerText = `⚠️ Error (${d.time}ms)`;
-                b.style.color = "#ef4444";
+            if (d.error) { o.innerText = d.error; b.innerText = "Server Error"; b.style.color = "#ef4444"; return; }
+            let res = d.results[0];
+            if (res.error) {
+                o.innerText = res.output; b.innerText = `⚠️ Error`; b.style.color = "#ef4444";
             } else {
-                o.innerText = d.output;
-                b.innerText = `⚡ ${d.time}ms`;
-                b.style.color = "#a6accd";
-                if (visOn) drawGraph(d.output); // Gate render behind toggle
+                o.innerText = res.output; b.innerText = `⚡ ${res.time}ms`; b.style.color = "#a6accd";
+                if (visOn) drawGraph(res.output); 
             }
-        } catch (e) {
-            o.innerText = "Server offline.";
-        }
+        } catch (e) { o.innerText = "Server offline."; }
     } else {
         let p = prb[document.getElementById('pSel').value];
-        let h = "<table style='width:100%; text-align:left; border-collapse:collapse;'><tr><th style='border-bottom:1px solid #2e344e; padding:5px;'>Test</th><th style='border-bottom:1px solid #2e344e; padding:5px;'>Status</th><th style='border-bottom:1px solid #2e344e; padding:5px;'>Time</th></tr>";
-        let allPassed = true;
+        let ins = p.tests.map(tc => tc.i);
         
-        for (let j = 0; j < p.tests.length; j++) {
-            let tc = p.tests[j];
-            try {
-                let r = await fetch('http://localhost:3000/run', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: s, input: tc.i, language: l })
-                });
-                let d = await r.json();
-                let pass = (!d.error && d.output.trim() === tc.e);
-                if (!pass) allPassed = false;
-                let st = pass ? "<span style='color:#22c55e;'>✅ Passed</span>" : "<span style='color:#ef4444;'>❌ Failed</span>";
-                h += `<tr><td style='padding:5px;'>Case ${j+1}</td><td style='padding:5px;'>${st}</td><td style='padding:5px;'>${d.time}ms</td></tr>`;
+        try {
+            let r = await fetch('http://localhost:3000/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: s, inputs: ins, language: l })
+            });
+            let d = await r.json();
+            
+            let h = "<table style='width:100%; text-align:left; border-collapse:collapse;'><tr><th style='border-bottom:1px solid #2e344e; padding:5px;'>Test</th><th style='border-bottom:1px solid #2e344e; padding:5px;'>Status</th><th style='border-bottom:1px solid #2e344e; padding:5px;'>Time</th></tr>";
+            let allPassed = true;
+            
+            for (let j = 0; j < p.tests.length; j++) {
+                let tc = p.tests[j];
+                let res = d.results[j];
                 
-                // Gate render behind toggle AND only render the first test case
-                if (j === 0 && !d.error && visOn) drawGraph(d.output);
-                
-            } catch (e) {
-                allPassed = false;
-                h += `<tr><td style='padding:5px;'>Case ${j+1}</td><td style='padding:5px;'><span style='color:#ef4444;'>⚠️ Error</span></td><td style='padding:5px;'>-</td></tr>`;
+                if (!res || res.error) {
+                    allPassed = false;
+                    h += `<tr><td style='padding:5px;'>Case ${j+1}</td><td style='padding:5px;'><span style='color:#ef4444;'>⚠️ Error</span></td><td style='padding:5px;'>-</td></tr>`;
+                } else {
+                    let pass = (res.output.trim() === tc.e);
+                    if (!pass) allPassed = false;
+                    let st = pass ? "<span style='color:#22c55e;'>✅ Passed</span>" : "<span style='color:#ef4444;'>❌ Failed</span>";
+                    h += `<tr><td style='padding:5px;'>Case ${j+1}</td><td style='padding:5px;'>${st}</td><td style='padding:5px;'>${res.time}ms</td></tr>`;
+                    
+                    if (j === 0 && pass && visOn) drawGraph(res.output);
+                }
             }
-        }
-        h += "</table>";
-        o.innerHTML = h;
-        b.innerText = allPassed ? "🏆 All Tests Passed" : "❌ Tests Failed";
-        b.style.color = allPassed ? "#22c55e" : "#ef4444";
+            h += "</table>";
+            
+            if (d.results[0] && d.results[0].error) {
+                h += `<div style="margin-top:15px; color:#ef4444; font-family:monospace; white-space:pre-wrap;">${d.results[0].output}</div>`;
+            }
+
+            o.innerHTML = h;
+            b.innerText = allPassed ? "🏆 All Tests Passed" : "❌ Tests Failed";
+            b.style.color = allPassed ? "#22c55e" : "#ef4444";
+            
+        } catch (e) { o.innerText = "Server offline."; }
     }
 }
 

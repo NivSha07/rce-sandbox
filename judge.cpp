@@ -3,39 +3,33 @@
 #pragma comment(lib, "ws2_32.lib")
 
 using namespace std;
-using namespace std::chrono;
 
 void hC(SOCKET cs){
     char b[2048]={0};
     recv(cs,b,2048,0);
     string r(b);
-    size_t d=r.find('|');
+    size_t d = r.find('|');
     if(d==string::npos) return;
     
-    string l=r.substr(0,d);
-    string f=r.substr(d+1);
-    string c="";
-    string lm="--memory=\"256m\" --cpus=\"1\"";
-    string o=f+"_out.txt";
+    string l = r.substr(0,d);
+    string f = r.substr(d+1);
     
-    if(l=="cpp") c="docker run --rm "+lm+" -v \"%cd%:/usr/src/app\" -w /usr/src/app gcc:latest bash -c \"g++ "+f+".cpp -o "+f+".out && timeout 5s ./"+f+".out < "+f+".txt\" > "+o+" 2>&1";
-    else if(l=="python") c="docker run --rm "+lm+" -v \"%cd%:/usr/src/app\" -w /usr/src/app python:latest bash -c \"timeout 5s python "+f+".py < "+f+".txt\" > "+o+" 2>&1";
-    else if(l=="java") c="docker run --rm "+lm+" -v \"%cd%/"+f+":/usr/src/app\" -w /usr/src/app eclipse-temurin:latest bash -c \"javac Main.java && timeout 5s java Main < input.txt\" > "+o+" 2>&1";
-    else if(l=="javascript") c="docker run --rm "+lm+" -v \"%cd%:/usr/src/app\" -w /usr/src/app node:latest bash -c \"timeout 5s node "+f+".js < "+f+".txt\" > "+o+" 2>&1";
-    else if(l=="rust") c="docker run --rm "+lm+" -v \"%cd%:/usr/src/app\" -w /usr/src/app rust:latest bash -c \"rustc "+f+".rs && timeout 5s ./"+f+" < "+f+".txt\" > "+o+" 2>&1";
+    string lm = "--memory=\"256m\" --cpus=\"1\"";
+    string o = f+"_out.txt";
+    string img = (l=="cpp"?"gcc:latest":l=="python"?"python:latest":l=="java"?"eclipse-temurin:latest":l=="javascript"?"node:latest":"rust:latest");
+    string ddir = (l=="java") ? "\"%cd%/"+f+"\"" : "\"%cd%\"";
+    string sh = (l=="java") ? "runner.sh" : f+".sh";
     
-    auto st=high_resolution_clock::now();
+    // Execute Docker ONCE using the generated batch script
+    string c = "docker run --rm "+lm+" -v "+ddir+":/usr/src/app -w /usr/src/app "+img+" bash "+sh+" > "+o+" 2>&1";
     system(c.c_str());
-    auto en=high_resolution_clock::now();
-    auto t=duration_cast<milliseconds>(en-st).count();
     
     ifstream ifs(o);
     string res((istreambuf_iterator<char>(ifs)),(istreambuf_iterator<char>()));
     ifs.close();
     remove(o.c_str());
     
-    string msg=to_string(t)+"|"+res;
-    send(cs,msg.c_str(),msg.length(),0);
+    send(cs,res.c_str(),res.length(),0);
     closesocket(cs);
 }
 
@@ -50,7 +44,7 @@ int main(){
     bind(s,(struct sockaddr*)&a,sizeof(a));
     listen(s,10);
     
-    cout<<"[SYSTEM] C++ Judge Daemon Active on TCP 8080\n";
+    cout<<"[SYSTEM] Batch-Optimized C++ Judge Active on TCP 8080\n";
     
     while(true){
         SOCKET cs=accept(s,nullptr,nullptr);

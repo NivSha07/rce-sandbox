@@ -7,57 +7,99 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const cln = (b) => {
+    try {
+        let jd = `${__dirname}/${b}`;
+        if (fs.existsSync(jd)) fs.rmSync(jd, { recursive: true, force: true });
+        
+        let files = fs.readdirSync(__dirname);
+        files.forEach(f => {
+            if (f.startsWith(b)) {
+                try { fs.unlinkSync(`${__dirname}/${f}`); } catch(e) {}
+            }
+        });
+    } catch(e) {}
+};
+
 app.post('/run', (req, res) => {
-    let { code, input, language } = req.body;
-    let baseFilename = `temp_${Date.now()}`;
-    let filesToClean = [];
+    let { code, inputs, language } = req.body;
+    let b = `temp_${Date.now()}`;
+    let sc = "";
+
+    if (language === 'cpp') sc += `g++ ${b}.cpp -o ${b}.out\n`;
+    else if (language === 'java') sc += `javac Main.java\n`;
+    else if (language === 'rust') sc += `rustc ${b}.rs\n`;
+
+    inputs.forEach((inp, i) => {
+        sc += `echo '---CASE${i}---'\n`;
+        sc += `T1=$(date +%s%3N)\n`;
+        let inpf = (language === 'java') ? `in_${i}.txt` : `${b}_in_${i}.txt`;
+        
+        if (language === 'cpp') sc += `timeout 5s ./${b}.out < ${inpf}\n`;
+        else if (language === 'python') sc += `timeout 5s python ${b}.py < ${inpf}\n`;
+        else if (language === 'java') sc += `timeout 5s java Main < ${inpf}\n`;
+        else if (language === 'javascript') sc += `timeout 5s node ${b}.js < ${inpf}\n`;
+        else if (language === 'rust') sc += `timeout 5s ./${b} < ${inpf}\n`;
+        
+        sc += `T2=$(date +%s%3N)\n`;
+        sc += `echo '---TIME' $(($T2-$T1)) '---'\n`;
+    });
 
     if (language === 'java') {
-        let javaDir = `${__dirname}/${baseFilename}`;
-        fs.mkdirSync(javaDir); 
-        fs.writeFileSync(`${javaDir}/Main.java`, code);
-        fs.writeFileSync(`${javaDir}/input.txt`, input || "");
-        filesToClean.push(javaDir);
+        let jd = `${__dirname}/${b}`;
+        fs.mkdirSync(jd);
+        fs.writeFileSync(`${jd}/Main.java`, code);
+        fs.writeFileSync(`${jd}/runner.sh`, sc);
+        inputs.forEach((inp, i) => fs.writeFileSync(`${jd}/in_${i}.txt`, inp));
     } else {
         let ext = language === 'javascript' ? 'js' : language === 'python' ? 'py' : language === 'rust' ? 'rs' : 'cpp';
-        fs.writeFileSync(`${baseFilename}.${ext}`, code);
-        fs.writeFileSync(`${baseFilename}.txt`, input || "");
-        filesToClean.push(`${baseFilename}.${ext}`, `${baseFilename}.txt`, `${baseFilename}.out`, `${baseFilename}.exe`, baseFilename);
+        fs.writeFileSync(`${b}.${ext}`, code);
+        fs.writeFileSync(`${b}.sh`, sc);
+        inputs.forEach((inp, i) => fs.writeFileSync(`${b}_in_${i}.txt`, inp));
     }
 
-    // Connect to C++ TCP Daemon
-    let client = new net.Socket();
-    client.connect(8080, '127.0.0.1', () => {
-        client.write(`${language}|${baseFilename}`);
+    let cl = new net.Socket();
+    cl.connect(8080, '127.0.0.1', () => {
+        cl.write(`${language}|${b}`);
     });
 
-    client.on('data', (data) => {
-        let response = data.toString();
-        let delim = response.indexOf('|');
-        let timeTaken = response.substring(0, delim);
-        let output = response.substring(delim + 1).trim();
+    cl.on('data', (d) => {
+        let r = d.toString();
+        cln(b); 
 
-        // Cleanup
-        if (language === 'java') {
-            if (fs.existsSync(`${__dirname}/${baseFilename}`)) fs.rmSync(`${__dirname}/${baseFilename}`, { recursive: true, force: true });
-        } else {
-            filesToClean.forEach(f => { if (fs.existsSync(f)) fs.unlinkSync(f); });
+        let resArr = [];
+        for (let i = 0; i < inputs.length; i++) {
+            let si = r.indexOf(`---CASE${i}---`);
+            if (si === -1) {
+                resArr.push({ error: true, output: "Compilation/Execution Failed:\n" + r.substring(0, 200), time: "-" });
+                continue;
+            }
+            si += (`---CASE${i}---`).length;
+
+            let ei = r.indexOf(`---TIME`, si);
+            if (ei === -1) {
+                resArr.push({ error: true, output: "Execution Timeout or Crash", time: "-" });
+                continue;
+            }
+            
+            let o = r.substring(si, ei).trim();
+            let ts = ei + (`---TIME`).length;
+            let te = r.indexOf('---', ts);
+            let t = r.substring(ts, te).trim();
+
+            resArr.push({ output: o, time: t });
         }
 
-        if (output.includes('timeout') || output.includes('Killed')) {
-            return res.status(400).send({ error: "Execution Timed Out.", time: timeTaken });
-        }
-        if (output.includes('error:') || output.includes('Exception')) {
-            return res.status(400).send({ error: output, time: timeTaken });
-        }
-
-        res.send({ output: output, time: timeTaken });
-        client.destroy();
+        res.send({ results: resArr });
+        cl.destroy();
     });
 
-    client.on('error', (err) => {
+    cl.on('error', (err) => {
+        cln(b); 
         res.status(500).send({ error: "Judge Daemon Offline. Start judge.exe." });
     });
+
+    setTimeout(() => cln(b), 10000); 
 });
 
-app.listen(3000, () => console.log("Node Gateway on Port 3000"));
+app.listen(3000);
