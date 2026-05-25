@@ -107,7 +107,6 @@
         }
         button:hover { background: var(--accent-hover); }
 
-        /* NEW: Expandable Expected Output CSS */
         details { border-top: 1px solid var(--border); }
         summary {
             padding: 10px 15px;
@@ -118,9 +117,16 @@
             background: #1e1e1e;
         }
         summary:hover { color: var(--text-main); }
-        #expectedOutput { height: 80px; border-top: 1px solid var(--border); color: #ffcb6b; } /* Yellow for expected text */
-        
+        #expectedOutput { height: 80px; border-top: 1px solid var(--border); color: #ffcb6b; }
         #statusBadge { font-weight: bold; font-size: 0.9rem; }
+        
+        /* NEW: Canvas Container CSS */
+        .canvas-container {
+            padding: 15px;
+            background: #1a1c29;
+            border-top: 1px solid var(--border);
+            display: none; /* Hidden by default */
+        }
 
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: var(--bg-color); }
@@ -176,10 +182,15 @@
                     <span id="statusBadge"></span>
                 </div>
                 <pre id="consoleOutput">Awaiting execution...</pre>
+                
+                <div class="canvas-container" id="chartBox">
+                    <canvas id="outputChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.38.0/min/vs/loader.min.js"></script>
     <script>
         require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.38.0/min/vs' }});
