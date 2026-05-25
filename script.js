@@ -20,16 +20,55 @@ const prb = [
     }
 ];
 
+function saveState() {
+    if (!window.editor) return;
+    let state = {
+        p: document.getElementById('pSel').value,
+        l: document.getElementById('lSel').value,
+        t: document.getElementById('tSel').value,
+        f: document.getElementById('fInp').value,
+        c: window.editor.getValue(),
+        m: nmd 
+    };
+    localStorage.setItem('rce_data', JSON.stringify(state));
+}
+
+function initApp() {
+    let saved = localStorage.getItem('rce_data');
+    if (saved) {
+        let s = JSON.parse(saved);
+        
+        document.getElementById('pSel').value = s.p;
+        document.getElementById('lSel').value = s.l;
+        document.getElementById('tSel').value = s.t;
+        document.getElementById('fInp').value = s.f;
+        
+        monaco.editor.setTheme(s.t);
+        window.editor.updateOptions({ fontSize: parseInt(s.f) });
+        
+        let p = prb[s.p];
+        document.getElementById('pDsc').innerHTML = p.d;
+        document.getElementById('stdInput').value = p.i;
+        document.getElementById('expectedOutput').value = p.e;
+        
+        window.editor.setValue(s.c);
+        monaco.editor.setModelLanguage(window.editor.getModel(), s.l);
+        
+        if (s.m) {
+            nmd = false; 
+            tgMd(); 
+        }
+    } else {
+        ldP(); 
+    }
+}
+
 function tgMd() {
     nmd = !nmd;
     let b = document.getElementById('mBtn');
-    if (nmd) {
-        document.body.classList.add('nmd');
-        b.innerText = "CP Mode";
-    } else {
-        document.body.classList.remove('nmd');
-        b.innerText = "Normal Mode";
-    }
+    if (nmd) { document.body.classList.add('nmd'); b.innerText = "CP Mode"; } 
+    else { document.body.classList.remove('nmd'); b.innerText = "Normal Mode"; }
+    saveState(); 
 }
 
 function ldP() {
@@ -42,7 +81,7 @@ function ldP() {
     document.getElementById('expectedOutput').value = p.e;
     
     if (window.editor) {
-        window.editor.setValue(p[l]); // Load the code for the selected language
+        window.editor.setValue(p[l]);
         monaco.editor.setModelLanguage(window.editor.getModel(), l);
     }
     
@@ -50,17 +89,37 @@ function ldP() {
     document.getElementById('statusBadge').innerText = "";
     document.getElementById('chartBox').style.display = "none";
     if (ch) ch.destroy();
+    
+    saveState(); 
 }
 
-function chL() {
-    ldP(); // Reload the problem boilerplate in the new language
+// NEW: Reset Function
+function rstC() {
+    if (confirm("Reset to default boilerplate? This will erase your current code.")) {
+        let x = document.getElementById('pSel').value;
+        let l = document.getElementById('lSel').value;
+        window.editor.setValue(prb[x][l]);
+        saveState();
+    }
+}
+
+function chL() { ldP(); }
+
+function chT() { 
+    monaco.editor.setTheme(document.getElementById('tSel').value); 
+    saveState(); 
+}
+
+function chF() { 
+    window.editor.updateOptions({ fontSize: parseInt(document.getElementById('fInp').value) }); 
+    saveState(); 
 }
 
 async function rnC() {
     let s = window.editor.getValue();
     let i = document.getElementById('stdInput').value;
     let e = document.getElementById('expectedOutput').value.trim();
-    let l = document.getElementById('lSel').value; // Grab the selected language
+    let l = document.getElementById('lSel').value; 
     
     let o = document.getElementById('consoleOutput');
     let b = document.getElementById('statusBadge');
@@ -75,7 +134,7 @@ async function rnC() {
         let r = await fetch('http://localhost:3000/run', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: s, input: i, language: l }) // Send language to backend
+            body: JSON.stringify({ code: s, input: i, language: l }) 
         });
         let d = await r.json();
         
@@ -88,11 +147,9 @@ async function rnC() {
             if (!nmd && e !== "") {
                 let a = d.output.trim();
                 if (a === e) {
-                    b.innerText = "✅ Passed";
-                    b.style.color = "#22c55e"; 
+                    b.innerText = "✅ Passed"; b.style.color = "#22c55e"; 
                 } else {
-                    b.innerText = "❌ Failed";
-                    b.style.color = "#ef4444"; 
+                    b.innerText = "❌ Failed"; b.style.color = "#ef4444"; 
                 }
             }
             if (!nmd) drG(d.output);
@@ -117,6 +174,3 @@ function drG(t) {
         options: { responsive: true, scales: { y: { grid: { color: '#2e344e' }, ticks: { color: '#a6accd' } }, x: { grid: { color: '#2e344e' }, ticks: { color: '#a6accd' } } }, plugins: { legend: { display: false } } }
     });
 }
-
-function chT() { monaco.editor.setTheme(document.getElementById('tSel').value); }
-function chF() { window.editor.updateOptions({ fontSize: parseInt(document.getElementById('fInp').value) }); }
