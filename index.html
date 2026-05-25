@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RCE Sandbox</title>
+<title>RCE Sandbox Pro</title>
 <style>
 :root{--bg-color:#0f111a;--panel-bg:#1e1e1e;--text-main:#e2e8f0;--text-muted:#a6accd;--accent:#3b82f6;--accent-hover:#2563eb;--border:#2e344e;}
 body{margin:0;padding:20px;background-color:var(--bg-color);color:var(--text-main);font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;height:100vh;box-sizing:border-box;}
 header{margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
-header h2{margin:0;font-weight:500;}
+header h2{margin:0;font-weight:500; display:flex; align-items:center; gap:15px;}
 .cnt{display:flex;gap:20px;flex:1;min-height:0;}
 .p-pan{flex:3;display:flex;flex-direction:column;gap:15px;overflow-y:auto;}
 .e-pan{flex:4;display:flex;flex-direction:column;}
@@ -27,7 +27,6 @@ button{background:var(--accent);color:white;border:none;padding:14px 20px;border
 button:hover{background:var(--accent-hover);}
 details{border-top:1px solid var(--border);}
 summary{padding:10px 15px;font-size:0.85rem;color:var(--text-muted);cursor:pointer;user-select:none;background:#1e1e1e;}
-summary:hover{color:var(--text-main);}
 #expectedOutput{height:80px;border-top:1px solid var(--border);color:#ffcb6b;}
 #statusBadge{font-weight:bold;font-size:0.9rem;}
 .c-bx{padding:15px;background:#1a1c29;border-top:1px solid var(--border);display:none;}
@@ -43,26 +42,35 @@ button{box-shadow:0 4px 6px -1px rgba(59,130,246,0.2),0 2px 4px -1px rgba(59,130
 button:hover{transform:translateY(-2px);box-shadow:0 10px 15px -3px rgba(59,130,246,0.3),0 4px 6px -2px rgba(59,130,246,0.15);}
 button:active{transform:translateY(0);}
 textarea:focus,select:focus,input:focus{box-shadow:inset 0 0 0 1px var(--accent);}
-details summary{transition:background-color 0.2s ease;}
-details[open] summary{background-color:#23273b;border-bottom:1px solid var(--border);}
 body.nmd .p-pan{display:none;}
 body.nmd .e-pan{flex:6;}
 body.nmd .r-pan{flex:4;}
 body.nmd details{display:none;}
 body.nmd #chartBox{display:none !important;}
+
+/* Modal CSS */
+.modal{display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); align-items:center; justify-content:center; z-index:100;}
+.modal-content{background:var(--panel-bg); padding:20px; border-radius:8px; border:1px solid var(--border); width:500px;}
+.modal textarea{border:1px solid var(--border); background:#1a1c29; height:200px; margin-top:10px;}
 </style>
 </head>
 <body>
 <header>
-<h2>RCE Execution Environment</h2>
-<button id="mBtn" onclick="tgMd()" style="padding:8px 15px;font-size:0.9rem;background:#2e344e;">Normal Mode</button>
+<h2>
+    RCE Execution Environment
+    <button onclick="openSettings()" style="padding:6px 12px;font-size:0.8rem;background:#4ade80;color:#0f111a;">⚙️ Boilerplate Settings</button>
+</h2>
+<div style="display:flex; gap:10px;">
+    <button id="vBtn" onclick="toggleVis()" style="padding:8px 15px;font-size:0.9rem;background:var(--accent);">📊 Visualizer: ON</button>
+    <button id="mBtn" onclick="toggleMode()" style="padding:8px 15px;font-size:0.9rem;background:#2e344e;">Normal Mode</button>
+</div>
 </header>
 <div class="cnt">
 <div class="p-pan">
 <div class="bx" style="flex:1;">
 <div class="b-hdr">
 Problem
-<select id="pSel" onchange="ldP()" style="background:#1a1c29;color:var(--text-main);border:1px solid var(--border);padding:2px 5px;border-radius:4px;outline:none;font-size:0.8rem;">
+<select id="pSel" onchange="loadProblem()" style="background:#1a1c29;color:var(--text-main);border:1px solid var(--border);padding:2px 5px;border-radius:4px;outline:none;font-size:0.8rem;">
 <option value="0">A. Array Prefix Sums</option>
 <option value="1">B. Indicator Variables</option>
 </select>
@@ -74,10 +82,10 @@ Problem
 <div class="bx">
 <div class="b-hdr">source.cpp</div>
 <div class="t-bar">
-<div><label>Lang: </label><select id="lSel" onchange="chL()"><option value="cpp">C++</option><option value="python">Python</option><option value="java">Java</option></select></div>
-<div><label>Theme: </label><select id="tSel" onchange="chT()"><option value="vs-dark">Dark</option><option value="vs">Light</option><option value="hc-black">High Contrast</option></select></div>
-<div><label>Font: </label><input type="number" id="fInp" value="15" min="10" max="30" style="width:50px;" onchange="chF()"></div>
-<button onclick="rstC()" style="margin-left:auto; padding:6px 12px; font-size:0.8rem; background:#ef4444; color:white; border-radius:4px; border:none; cursor:pointer;">Reset Code</button>
+<div><label>Lang: </label><select id="lSel" onchange="changeLanguage()"><option value="cpp">C++</option><option value="python">Python</option><option value="java">Java</option><option value="javascript">Node.js</option><option value="rust">Rust</option></select></div>
+<div><label>Theme: </label><select id="tSel" onchange="changeTheme()"><option value="vs-dark">Dark</option><option value="vs">Light</option><option value="hc-black">High Contrast</option></select></div>
+<div><label>Font: </label><input type="number" id="fInp" value="15" min="10" max="30" style="width:50px;" onchange="changeFont()"></div>
+<button onclick="resetCode()" style="margin-left:auto; padding:6px 12px; font-size:0.8rem; background:#ef4444; color:white; border-radius:4px; border:none; cursor:pointer;">Reset Code</button>
 </div>
 <div id="editorContainer"></div>
 </div>
@@ -88,7 +96,7 @@ Problem
 <textarea id="stdInput" spellcheck="false"></textarea>
 <details open><summary>Expected Output</summary><textarea id="expectedOutput" spellcheck="false"></textarea></details>
 </div>
-<button onclick="rnC()">Run Execution</button>
+<button onclick="runCode()">Run Execution</button>
 <div class="bx" style="flex:0.6;">
 <div class="b-hdr">Console Output <span id="statusBadge"></span></div>
 <pre id="consoleOutput">Awaiting execution...</pre>
@@ -96,6 +104,19 @@ Problem
 </div>
 </div>
 </div>
+
+<div id="setMod" class="modal">
+    <div class="modal-content">
+        <h3 style="margin-top:0;">Global Boilerplate Injector</h3>
+        <p style="font-size:0.9rem; color:var(--text-muted);">This code will auto-inject whenever you Reset for the current language.</p>
+        <textarea id="bpText"></textarea>
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:15px;">
+            <button onclick="closeSettings()" style="background:#2e344e;">Cancel</button>
+            <button onclick="saveSettings()">Save Boilerplate</button>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.38.0/min/vs/loader.min.js"></script>
 <script>
@@ -104,7 +125,6 @@ require(['vs/editor/editor.main'],function(){
     window.editor=monaco.editor.create(document.getElementById('editorContainer'),{
         value:"", language:'cpp',theme:'vs-dark',automaticLayout:true,minimap:{enabled:false},fontSize:15
     });
-    
     window.editor.onDidChangeModelContent(() => { if (typeof saveState === 'function') saveState(); });
     setTimeout(initApp, 100); 
 });
