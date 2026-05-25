@@ -16,11 +16,10 @@ void hC(SOCKET cs){
     
     string lm = "--memory=\"256m\" --cpus=\"1\" --network none --pids-limit 64";
     string o = f+"_out.txt";
-    string img = (l=="cpp"?"gcc:latest":l=="python"?"python:latest":l=="java"?"eclipse-temurin:latest":l=="javascript"?"node:latest":"rust:latest");
+    string img = (l=="cpp"?"gcc:latest":l=="python"?"python:latest":"eclipse-temurin:latest");
     string ddir = (l=="java") ? "\"%cd%/"+f+"\"" : "\"%cd%\"";
     string sh = (l=="java") ? "runner.sh" : f+".sh";
     
-    // Execute Docker ONCE using the generated batch script
     string c = "docker run --rm "+lm+" -v "+ddir+":/usr/src/app -w /usr/src/app "+img+" bash "+sh+" > "+o+" 2>&1";
     system(c.c_str());
     

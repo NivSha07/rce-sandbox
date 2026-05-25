@@ -9,9 +9,7 @@ const prb = [
         code: {
             cpp: "#include<bits/stdc++.h>\nusing namespace std;\n#define ll long long\n#define pb push_back\n#define fast_io ios_base::sync_with_stdio(false);cin.tie(NULL);\nint main(){\n    fast_io;\n    int n; cin>>n;\n    ll s=0;\n    for(int i=1;i<=n;i++){\n        s+=i; cout<<s<<\" \";\n    }\n    return 0;\n}",
             python: "n = int(input())\ns = 0\nfor i in range(1, n+1):\n    s += i\n    print(s, end=\" \")",
-            java: "import java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int n = sc.nextInt();\n        long s = 0;\n        for(int i=1; i<=n; i++) {\n            s += i;\n            System.out.print(s + \" \");\n        }\n    }\n}",
-            javascript: "const fs = require('fs');\nconst input = fs.readFileSync(0, 'utf-8').trim();\nlet n = parseInt(input);\nlet s = 0;\nlet res = [];\nfor(let i=1; i<=n; i++) { s+=i; res.push(s); }\nconsole.log(res.join(' '));",
-            rust: "use std::io;\nfn main() {\n    let mut input = String::new();\n    io::stdin().read_line(&mut input).unwrap();\n    let n: i32 = input.trim().parse().unwrap();\n    let mut s: i64 = 0;\n    for i in 1..=n {\n        s += i as i64;\n        print!(\"{} \", s);\n    }\n}"
+            java: "import java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int n = sc.nextInt();\n        long s = 0;\n        for(int i=1; i<=n; i++) {\n            s += i;\n            System.out.print(s + \" \");\n        }\n    }\n}"
         },
         tests: [ { i: "5", e: "1 3 6 10 15" }, { i: "3", e: "1 3 6" }, { i: "1", e: "1" } ]
     },
@@ -20,9 +18,7 @@ const prb = [
         code: {
             cpp: "#include<bits/stdc++.h>\nusing namespace std;\n#define ll long long\n#define pb push_back\n#define fast_io ios_base::sync_with_stdio(false);cin.tie(NULL);\nint main(){\n    fast_io;\n    int n; cin>>n;\n    vector<int> a(n);\n    for(int i=0;i<n;i++) cin>>a[i];\n    int c=0;\n    for(int i=0;i<n-1;i++){\n        if(a[i]==1 && a[i+1]==1) c++;\n    }\n    cout<<c<<\"\\n\";\n    return 0;\n}",
             python: "n = int(input())\narr = list(map(int, input().split()))\nc = 0\nfor i in range(n-1):\n    if arr[i] == 1 and arr[i+1] == 1:\n        c += 1\nprint(c)",
-            java: "import java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int n = sc.nextInt();\n        int[] a = new int[n];\n        for(int i=0; i<n; i++) a[i] = sc.nextInt();\n        int c = 0;\n        for(int i=0; i<n-1; i++) {\n            if(a[i]==1 && a[i+1]==1) c++;\n        }\n        System.out.println(c);\n    }\n}",
-            javascript: "const fs = require('fs');\nconst input = fs.readFileSync(0, 'utf-8').trim().split(/\\s+/).map(Number);\nlet n = input[0];\nlet c = 0;\nfor(let i=1; i<n; i++) {\n    if(input[i]===1 && input[i+1]===1) c++;\n}\nconsole.log(c);",
-            rust: "use std::io::{self, Read};\nfn main() {\n    let mut input = String::new();\n    io::stdin().read_to_string(&mut input).unwrap();\n    let mut iter = input.split_whitespace().flat_map(str::parse::<i32>);\n    let n = iter.next().unwrap();\n    let a: Vec<i32> = iter.collect();\n    let mut c = 0;\n    for i in 0..(n-1) as usize {\n        if a[i] == 1 && a[i+1] == 1 { c += 1; }\n    }\n    println!(\"{}\", c);\n}"
+            java: "import java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int n = sc.nextInt();\n        int[] a = new int[n];\n        for(int i=0; i<n; i++) a[i] = sc.nextInt();\n        int c = 0;\n        for(int i=0; i<n-1; i++) {\n            if(a[i]==1 && a[i+1]==1) c++;\n        }\n        System.out.println(c);\n    }\n}"
         },
         tests: [ { i: "5\n1 1 0 1 1", e: "2" }, { i: "4\n0 0 0 0", e: "0" }, { i: "3\n1 1 1", e: "2" } ]
     }
@@ -37,7 +33,7 @@ function saveState() {
         f: document.getElementById('fInp').value,
         c: window.editor.getValue(),
         m: nmd,
-        v: visOn // NEW: Save visualizer state
+        v: visOn 
     };
     localStorage.setItem('rce_data', JSON.stringify(state));
 }
@@ -47,7 +43,12 @@ function initApp() {
     if (saved) {
         let s = JSON.parse(saved);
         document.getElementById('pSel').value = s.p;
-        document.getElementById('lSel').value = s.l;
+        
+        // Safety check in case they loaded with JS/Rust selected before the trim
+        let langVal = s.l;
+        if (langVal === 'javascript' || langVal === 'rust') langVal = 'cpp';
+        document.getElementById('lSel').value = langVal;
+        
         document.getElementById('tSel').value = s.t;
         document.getElementById('fInp').value = s.f;
         
@@ -60,13 +61,12 @@ function initApp() {
         document.getElementById('expectedOutput').value = p.tests[0].e;
         
         window.editor.setValue(s.c);
-        monaco.editor.setModelLanguage(window.editor.getModel(), s.l);
+        monaco.editor.setModelLanguage(window.editor.getModel(), langVal);
         
         if (s.m) { nmd = false; toggleMode(); }
         
-        // NEW: Restore visualizer state
         if (s.v !== undefined) {
-            visOn = !s.v; // Invert so toggle visually flips it correct
+            visOn = !s.v; 
             toggleVis();
         }
     } else {
@@ -74,7 +74,6 @@ function initApp() {
     }
 }
 
-// NEW: Toggle function for visualizer
 function toggleVis() {
     visOn = !visOn;
     let b = document.getElementById('vBtn');
@@ -231,14 +230,12 @@ setInterval(async () => {
         let r = await fetch('http://localhost:3000/poll-problem');
         let d = await r.json();
         if (d) {
-            // 1. Add the problem to the database dynamically
             prb.push({
                 desc: `<h3>${d.name}</h3><p><a href="${d.url}" target="_blank" style="color:var(--accent); text-decoration:none;">View Original Problem ↗</a><br><br>Time Limit: ${d.timeLimit}ms</p>`,
-                code: prb[0].code, // Re-use the default boilerplates
+                code: prb[0].code, 
                 tests: d.tests
             });
             
-            // 2. Add it to the HTML Dropdown
             let sel = document.getElementById('pSel');
             let opt = document.createElement('option');
             opt.value = prb.length - 1;
@@ -246,9 +243,8 @@ setInterval(async () => {
             sel.appendChild(opt);
             sel.value = prb.length - 1;
             
-            // 3. Force CP Mode and Load the data
             if (!nmd) toggleMode();
             loadProblem();
         }
-    } catch (e) {} // Fail silently if server is offline
+    } catch (e) {} 
 }, 1000);

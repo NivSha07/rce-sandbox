@@ -28,7 +28,7 @@ ccApp.listen(10043, () => console.log("Companion Listener Active on Port 10043")
 
 app.get('/poll-problem', (req, res) => {
     res.json(pendingProblem);
-    pendingProblem = null; // Clear it out after sending to the frontend
+    pendingProblem = null;
 });
 // -----------------------------------------
 
@@ -52,7 +52,6 @@ app.post('/run', (req, res) => {
 
     if (language === 'cpp') sc += `g++ ${b}.cpp -o ${b}.out\n`;
     else if (language === 'java') sc += `javac Main.java\n`;
-    else if (language === 'rust') sc += `rustc ${b}.rs\n`;
 
     inputs.forEach((inp, i) => {
         sc += `echo '---CASE${i}---'\n`;
@@ -62,8 +61,6 @@ app.post('/run', (req, res) => {
         if (language === 'cpp') sc += `timeout 5s ./${b}.out < ${inpf}\n`;
         else if (language === 'python') sc += `timeout 5s python ${b}.py < ${inpf}\n`;
         else if (language === 'java') sc += `timeout 5s java Main < ${inpf}\n`;
-        else if (language === 'javascript') sc += `timeout 5s node ${b}.js < ${inpf}\n`;
-        else if (language === 'rust') sc += `timeout 5s ./${b} < ${inpf}\n`;
         
         sc += `T2=$(date +%s%3N)\n`;
         sc += `echo '---TIME' $(($T2-$T1)) '---'\n`;
@@ -76,7 +73,7 @@ app.post('/run', (req, res) => {
         fs.writeFileSync(`${jd}/runner.sh`, sc);
         inputs.forEach((inp, i) => fs.writeFileSync(`${jd}/in_${i}.txt`, inp));
     } else {
-        let ext = language === 'javascript' ? 'js' : language === 'python' ? 'py' : language === 'rust' ? 'rs' : 'cpp';
+        let ext = language === 'python' ? 'py' : 'cpp';
         fs.writeFileSync(`${b}.${ext}`, code);
         fs.writeFileSync(`${b}.sh`, sc);
         inputs.forEach((inp, i) => fs.writeFileSync(`${b}_in_${i}.txt`, inp));
