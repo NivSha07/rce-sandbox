@@ -7,11 +7,35 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// --- COMPETITIVE COMPANION INTERCEPTOR ---
+let pendingProblem = null;
+const ccApp = express();
+ccApp.use(cors());
+ccApp.use(express.json({ limit: '10mb' }));
+
+ccApp.post('/', (req, res) => {
+    let d = req.body;
+    pendingProblem = {
+        name: d.name,
+        url: d.url,
+        timeLimit: d.timeLimit,
+        tests: d.tests.map(t => ({ i: t.input, e: t.output }))
+    };
+    console.log(`[Companion] Intercepted: ${d.name} (${d.tests.length} tests)`);
+    res.sendStatus(200);
+});
+ccApp.listen(10043, () => console.log("Companion Listener Active on Port 10043"));
+
+app.get('/poll-problem', (req, res) => {
+    res.json(pendingProblem);
+    pendingProblem = null; // Clear it out after sending to the frontend
+});
+// -----------------------------------------
+
 const cln = (b) => {
     try {
         let jd = `${__dirname}/${b}`;
         if (fs.existsSync(jd)) fs.rmSync(jd, { recursive: true, force: true });
-        
         let files = fs.readdirSync(__dirname);
         files.forEach(f => {
             if (f.startsWith(b)) {
@@ -102,4 +126,4 @@ app.post('/run', (req, res) => {
     setTimeout(() => cln(b), 10000); 
 });
 
-app.listen(3000);
+app.listen(3000, () => console.log("Running"));

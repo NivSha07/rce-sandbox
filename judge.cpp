@@ -14,7 +14,7 @@ void hC(SOCKET cs){
     string l = r.substr(0,d);
     string f = r.substr(d+1);
     
-    string lm = "--memory=\"256m\" --cpus=\"1\"";
+    string lm = "--memory=\"256m\" --cpus=\"1\" --network none --pids-limit 64";
     string o = f+"_out.txt";
     string img = (l=="cpp"?"gcc:latest":l=="python"?"python:latest":l=="java"?"eclipse-temurin:latest":l=="javascript"?"node:latest":"rust:latest");
     string ddir = (l=="java") ? "\"%cd%/"+f+"\"" : "\"%cd%\"";

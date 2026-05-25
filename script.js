@@ -189,7 +189,8 @@ async function runCode() {
                     allPassed = false;
                     h += `<tr><td style='padding:5px;'>Case ${j+1}</td><td style='padding:5px;'><span style='color:#ef4444;'>⚠️ Error</span></td><td style='padding:5px;'>-</td></tr>`;
                 } else {
-                    let pass = (res.output.trim() === tc.e);
+                    let normalize = (str) => (str || "").trim().split(/\s+/).join(" ");
+                    let pass = (normalize(res.output) === normalize(tc.e));
                     if (!pass) allPassed = false;
                     let st = pass ? "<span style='color:#22c55e;'>✅ Passed</span>" : "<span style='color:#ef4444;'>❌ Failed</span>";
                     h += `<tr><td style='padding:5px;'>Case ${j+1}</td><td style='padding:5px;'>${st}</td><td style='padding:5px;'>${res.time}ms</td></tr>`;
@@ -224,3 +225,30 @@ function drawGraph(t) {
         options: { responsive: true, scales: { y: { grid: { color: '#2e344e' }, ticks: { color: '#a6accd' } }, x: { grid: { color: '#2e344e' }, ticks: { color: '#a6accd' } } }, plugins: { legend: { display: false } } }
     });
 }
+// --- COMPETITIVE COMPANION POLLER ---
+setInterval(async () => {
+    try {
+        let r = await fetch('http://localhost:3000/poll-problem');
+        let d = await r.json();
+        if (d) {
+            // 1. Add the problem to the database dynamically
+            prb.push({
+                desc: `<h3>${d.name}</h3><p><a href="${d.url}" target="_blank" style="color:var(--accent); text-decoration:none;">View Original Problem ↗</a><br><br>Time Limit: ${d.timeLimit}ms</p>`,
+                code: prb[0].code, // Re-use the default boilerplates
+                tests: d.tests
+            });
+            
+            // 2. Add it to the HTML Dropdown
+            let sel = document.getElementById('pSel');
+            let opt = document.createElement('option');
+            opt.value = prb.length - 1;
+            opt.text = `⚡ ${d.name}`;
+            sel.appendChild(opt);
+            sel.value = prb.length - 1;
+            
+            // 3. Force CP Mode and Load the data
+            if (!nmd) toggleMode();
+            loadProblem();
+        }
+    } catch (e) {} // Fail silently if server is offline
+}, 1000);
