@@ -82,6 +82,7 @@ body.show-prob details { display: block; }
             <button class="gear-btn" onclick="toggleDrop(event)">⚙️</button>
             
             <div id="setDrop" style="display:none; position:absolute; top:120%; left:0; background:var(--panel-bg); border:1px solid var(--border); border-radius:6px; min-width:200px; z-index:1000; box-shadow:0 8px 16px rgba(0,0,0,0.4); padding:5px 0;">
+                <div class="d-itm" onclick="openProfile(); toggleDrop(event);">👤 My Profile</div>
                 <div class="d-itm" onclick="openSettings(); toggleDrop(event);">📝 Boilerplate Settings</div>
                 <div class="d-itm" onclick="openColorSettings(); toggleDrop(event);">🎨 Appearance</div>
             </div>
@@ -170,6 +171,34 @@ Problem
                 <button onclick="closeColorSettings()" style="background:#2e344e;">Cancel</button>
                 <button onclick="applyColorSettings()">Save Colors</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<div id="profileMod" class="modal">
+    <div class="modal-content" style="width: 450px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:15px; margin-bottom:20px;">
+            <h3 style="margin:0; display:flex; align-items:center; gap:12px;">
+                <span id="profImg"></span> 
+                <span id="profName">My Profile</span>
+            </h3>
+            <button onclick="closeProfile()" style="background:transparent; color:var(--text-muted); padding:0; width:auto; font-size:1.2rem;">✖</button>
+        </div>
+        
+        <div style="display:flex; gap:15px; margin-bottom:20px;">
+            <div class="bx" style="flex:1; padding:20px 10px; text-align:center;">
+                <div style="font-size:2.2rem; font-weight:bold; color:var(--text-main);" id="statTotal">0</div>
+                <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-top:5px;">Submissions</div>
+            </div>
+            <div class="bx" style="flex:1; padding:20px 10px; text-align:center;">
+                <div style="font-size:2.2rem; font-weight:bold; color:#22c55e;" id="statAcc">0</div>
+                <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-top:5px;">Accepted</div>
+            </div>
+        </div>
+
+        <div class="bx" style="padding:20px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:600; color:var(--text-muted);">Acceptance Rate</span>
+            <span id="statRate" style="font-size:1.8rem; font-weight:bold; color:var(--accent);">0%</span>
         </div>
     </div>
 </div>

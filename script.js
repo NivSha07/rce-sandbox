@@ -1,7 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
+import { getFirestore, collection, addDoc, doc, setDoc, getDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 const fc = {
     apiKey: "AIzaSyAbiBmoaLi-HsR78nQ8eatU6kEJI5n6rDk",
     authDomain: "rce-sandbox.firebaseapp.com",
@@ -58,7 +57,9 @@ const prb = [
             python: "n = int(input())\ns = 0\nfor i in range(1, n+1):\n    s += i\n    print(s, end=\" \")",
             java: "import java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int n = sc.nextInt();\n        long s = 0;\n        for(int i=1; i<=n; i++) {\n            s += i;\n            System.out.print(s + \" \");\n        }\n    }\n}"
         },
-        tests: [ { i: "5", e: "1 3 6 10 15" }, { i: "3", e: "1 3 6" }, { i: "1", e: "1" } ]
+        tests: [ { i: "5", e: "1 3 6 10 15" }, { i: "3", e: "1 3 6" }, { i: "1", e: "1" } ],
+        // Hidden edge cases for submission
+        hiddenTests: [ { i: "7", e: "1 3 6 10 15 21 28" }, { i: "10", e: "1 3 6 10 15 21 28 36 45 55" } ] 
     },
     {
         desc: "<h3>B. Indicator Variables</h3><p>Calculate the total number of times a '1' is immediately followed by another '1'.</p>",
@@ -67,7 +68,9 @@ const prb = [
             python: "n = int(input())\narr = list(map(int, input().split()))\nc = 0\nfor i in range(n-1):\n    if arr[i] == 1 and arr[i+1] == 1:\n        c += 1\nprint(c)",
             java: "import java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int n = sc.nextInt();\n        int[] a = new int[n];\n        for(int i=0; i<n; i++) a[i] = sc.nextInt();\n        int c = 0;\n        for(int i=0; i<n-1; i++) {\n            if(a[i]==1 && a[i+1]==1) c++;\n        }\n        System.out.println(c);\n    }\n}"
         },
-        tests: [ { i: "5\n1 1 0 1 1", e: "2" }, { i: "4\n0 0 0 0", e: "0" }, { i: "3\n1 1 1", e: "2" } ]
+        tests: [ { i: "5\n1 1 0 1 1", e: "2" }, { i: "4\n0 0 0 0", e: "0" }, { i: "3\n1 1 1", e: "2" } ],
+        // Hidden edge cases for submission
+        hiddenTests: [ { i: "6\n1 1 1 1 1 1", e: "5" }, { i: "2\n1 0", e: "0" } ]
     }
 ];
 
@@ -112,21 +115,18 @@ window.initApp = function() {
 window.toggleMode = function() {
     showProblem = !showProblem;
     let b = document.getElementById('mBtn');
-    let subBtn = document.getElementById('submitBtn'); // Grab the submit button
+    let subBtn = document.getElementById('submitBtn');
     
     if (showProblem) { 
         document.body.classList.add('show-prob'); 
         b.innerText = "Mode: Problem Viewer"; 
         b.style.background = "#8b5cf6"; 
-           
-        if (subBtn) subBtn.style.display = "block"; 
-        
+
         window.loadProblem(); 
     } else { 
         document.body.classList.remove('show-prob'); 
         b.innerText = "Mode: Normal"; 
         b.style.background = "#2e344e"; 
-        
         if (subBtn) subBtn.style.display = "none"; 
     }
     window.saveState();
@@ -145,6 +145,17 @@ window.loadProblem = function() {
     }
     document.getElementById('consoleOutput').innerText = "Awaiting execution...";
     document.getElementById('statusBadge').innerText = "";
+    
+
+    let subBtn = document.getElementById('submitBtn');
+    if (subBtn) {
+        if (showProblem && !p.isCF) {
+            subBtn.style.display = "block";
+        } else {
+            subBtn.style.display = "none";
+        }
+    }
+    
     window.saveState();
 };
 
@@ -188,6 +199,7 @@ window.runCode = async function(isSubmit = false) {
     b.innerText = "";
     
     if (!showProblem) {
+        // --- NORMAL MODE ---
         let i = document.getElementById('stdInput').value;
         try {
             let r = await fetch('http://localhost:3000/run', {
@@ -206,7 +218,10 @@ window.runCode = async function(isSubmit = false) {
         } catch (e) { o.innerText = "Server offline."; }
     } else {
         let p = prb[document.getElementById('pSel').value];
-        let ins = p.tests.map(tc => tc.i);
+        
+        let activeTests = (isSubmit && p.hiddenTests) ? [...p.tests, ...p.hiddenTests] : [...p.tests];
+        let ins = activeTests.map(tc => tc.i);
+        
         try {
             let r = await fetch('http://localhost:3000/run', {
                 method: 'POST',
@@ -214,38 +229,60 @@ window.runCode = async function(isSubmit = false) {
                 body: JSON.stringify({ code: s, inputs: ins, language: l })
             });
             let d = await r.json();
+            
             let h = "<table style='width:100%; text-align:left; border-collapse:collapse;'><tr><th style='border-bottom:1px solid var(--border); padding:5px;'>Test</th><th style='border-bottom:1px solid var(--border); padding:5px;'>Status</th><th style='border-bottom:1px solid var(--border); padding:5px;'>Time</th></tr>";
+            
             let allPassed = true;
-            for (let j = 0; j < p.tests.length; j++) {
-                let tc = p.tests[j];
+            let visibleFailed = false;
+            let hiddenFailed = false;
+
+            for (let j = 0; j < activeTests.length; j++) {
+                let tc = activeTests[j];
                 let res = d.results[j];
-                if (!res || res.error) {
-                    allPassed = false;
-                    h += `<tr><td style='padding:5px;'>Case ${j+1}</td><td style='padding:5px;'><span style='color:#ef4444;'>⚠️ Error</span></td><td style='padding:5px;'>-</td></tr>`;
-                } else {
+                let isHidden = j >= p.tests.length; 
+
+                let pass = false;
+                if (res && !res.error) {
                     let normalize = (str) => (str || "").trim().split(/\s+/).join(" ");
-                    let pass = (normalize(res.output) === normalize(tc.e));
-                    if (!pass) allPassed = false;
-                    let st = pass ? "<span style='color:#22c55e;'>✅ Passed</span>" : "<span style='color:#ef4444;'>❌ Failed</span>";
-                    h += `<tr><td style='padding:5px;'>Case ${j+1}</td><td style='padding:5px;'>${st}</td><td style='padding:5px;'>${res.time}ms</td></tr>`;
+                    pass = (normalize(res.output) === normalize(tc.e));
+                }
+
+                if (!pass) {
+                    allPassed = false;
+                    if (isHidden) hiddenFailed = true;
+                    else visibleFailed = true;
+                }
+
+                if (!isHidden) {
+                    if (!res || res.error) {
+                        h += `<tr><td style='padding:5px;'>Case ${j+1}</td><td style='padding:5px;'><span style='color:#ef4444;'>⚠️ Error</span></td><td style='padding:5px;'>-</td></tr>`;
+                    } else {
+                        let st = pass ? "<span style='color:#22c55e;'>✅ Passed</span>" : "<span style='color:#ef4444;'>❌ Failed</span>";
+                        h += `<tr><td style='padding:5px;'>Case ${j+1}</td><td style='padding:5px;'>${st}</td><td style='padding:5px;'>${res.time}ms</td></tr>`;
+                    }
                 }
             }
             h += "</table>";
+            
             if (d.results[0] && d.results[0].error) {
                 h += `<div style="margin-top:15px; color:#ef4444; font-family:monospace; white-space:pre-wrap;">${d.results[0].output}</div>`;
             }
             o.innerHTML = h;
             
-            // Adjust messaging and database saving based on Run vs Submit
             if (isSubmit) {
-                b.innerText = allPassed ? "🌟 Accepted" : "❌ Wrong Answer";
-                b.style.color = allPassed ? "#22c55e" : "#ef4444";
-                
-                // ONLY save to database if it was a Submit AND it passed all tests
+                let maxTime = Math.max(...d.results.map(r => parseInt(r.time) || 0));
+                let statusMsg = "";
+
                 if (allPassed) {
-                    let maxTime = Math.max(...d.results.map(r => parseInt(r.time) || 0));
-                    window.saveRun(p.desc.split("</h3>")[0].replace("<h3>", ""), s, l, maxTime);
+                    b.innerText = "🌟 Accepted"; b.style.color = "#22c55e"; statusMsg = "Accepted";
+                } else if (visibleFailed) {
+                    b.innerText = "❌ Wrong Answer"; b.style.color = "#ef4444"; statusMsg = "Wrong Answer";
+                } else if (hiddenFailed) {
+                    b.innerText = "🔒 Failed Hidden Test"; b.style.color = "#f59e0b"; statusMsg = "Failed Hidden Test";
                 }
+
+                // Log EVERY submit to the database so we can track the acceptance rate
+                window.saveSubmission(p.desc.split("</h3>")[0].replace("<h3>", ""), l, maxTime, statusMsg, allPassed);
             } else {
                 b.innerText = allPassed ? "🏆 All Tests Passed" : "❌ Tests Failed";
                 b.style.color = allPassed ? "#22c55e" : "#ef4444";
@@ -255,22 +292,30 @@ window.runCode = async function(isSubmit = false) {
     }
 };
 
-window.saveRun = async (problemName, code, lang, timeMs) => {
+window.saveSubmission = async (problemName, lang, timeMs, statusStr, isAccepted) => {
     if (!au.currentUser) return; 
     
     try {
-        await addDoc(collection(db, "submissions"), {
-            uid: au.currentUser.uid,
-            username: au.currentUser.displayName || au.currentUser.email,
-            problem: problemName,
-            language: lang,
-            code: code,
-            time: timeMs,
-            timestamp: Date.now()
+        // Grab the secure JWT token from Firebase
+        let tk = await au.currentUser.getIdToken();
+        
+        // Send the stats to your secure backend
+        await fetch('http://localhost:3000/save-stat', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${tk}` // Pass token in header
+            },
+            body: JSON.stringify({
+                problem: problemName,
+                language: lang,
+                time: timeMs,
+                status: statusStr,
+                isAccepted: isAccepted
+            })
         });
-        console.log("✅ Success logged to Firestore!");
     } catch (e) {
-        console.error("Database save failed:", e);
+        console.error("Failed to send stats to backend:", e);
     }
 };
 
@@ -320,26 +365,54 @@ window.addEventListener('click', function() {
     }
 });
 
+window.openProfile = async function() {
+    document.getElementById('profileMod').style.display = "flex";
+    if (au.currentUser) {
+        document.getElementById('profName').innerText = au.currentUser.displayName || au.currentUser.email;
+        document.getElementById('profImg').innerHTML = `<img src="${au.currentUser.photoURL}" style="width:36px; height:36px; border-radius:50%; vertical-align:middle;">`;
+        
+        // Fetch fresh stats from the database
+        try {
+            let userDoc = await getDoc(doc(db, "users", au.currentUser.uid));
+            if (userDoc.exists()) {
+                let data = userDoc.data();
+                let t = data.stats?.totalSubmissions || 0;
+                let a = data.stats?.totalAccepted || 0;
+                
+                document.getElementById('statTotal').innerText = t;
+                document.getElementById('statAcc').innerText = a;
+                
+                // Calculate percentage
+                let rate = t === 0 ? 0 : Math.round((a / t) * 100);
+                document.getElementById('statRate').innerText = rate + "%";
+            }
+        } catch(e) { console.error("Error loading profile:", e); }
+    } else {
+        document.getElementById('profName').innerText = "Please log in first";
+        document.getElementById('profImg').innerHTML = "🔒 ";
+    }
+};
+
+window.closeProfile = function() {
+    document.getElementById('profileMod').style.display = "none";
+};
+
 setInterval(async () => {
     try {
         let r = await fetch('http://localhost:3000/poll-problem');
         let d = await r.json();
         if (d) {
-            // Replaces patterns like "B. " or "C1. " with "Q. "
             let formattedName = d.name.replace(/^[A-Z]\d*\.\s*/, "Q. ");
-
             prb.push({
                 desc: `<h3>${formattedName}</h3><p><a href="${d.url}" target="_blank" style="color:var(--accent); text-decoration:none;">View Original Problem ↗</a><br><br>Time Limit: ${d.timeLimit}ms</p>`,
                 code: prb[0].code, 
-                tests: d.tests
+                tests: d.tests,
+                isCF: true
             });
             let sel = document.getElementById('pSel');
             let opt = document.createElement('option');
             opt.value = prb.length - 1;
-            
-            // Updates the dropdown text
             opt.text = `⚡ ${formattedName}`;
-            
             sel.appendChild(opt);
             sel.value = prb.length - 1;
             if (!showProblem) window.toggleMode();

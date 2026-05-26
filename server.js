@@ -3,6 +3,16 @@ const fs = require('fs');
 const net = require('net');
 const cors = require('cors');
 
+// --- FIREBASE ADMIN SETUP ---
+const admin = require('firebase-admin');
+const serviceAccount = require('./serviceAccountKey.json');
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+const db = admin.firestore();
+// ----------------------------
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -123,9 +133,46 @@ app.post('/run', (req, res) => {
 
     setTimeout(() => cln(b), 10000); 
 });
-const { spawn } = require('child_process');
 
-// no external command needed for judge now
+// --- NEW: SECURE STAT SAVING ROUTE ---
+app.post('/save-stat', async (req, res) => {
+    // Extract the Firebase Auth Token from the header
+    let token = req.headers.authorization?.split('Bearer ')[1];
+    if (!token) return res.status(401).send({ error: "Unauthorized" });
+
+    try {
+        // Verify the token securely with Google
+        let decodedToken = await admin.auth().verifyIdToken(token);
+        let uid = decodedToken.uid;
+
+        let { problem, language, time, status, isAccepted } = req.body;
+
+        // 1. Log the submission
+        await db.collection('submissions').add({
+            uid: uid, problem: problem, language: language, status: status, time: time, timestamp: Date.now()
+        });
+
+        // 2. Safely increment user profile stats
+        let userRef = db.collection('users').doc(uid);
+        let userDoc = await userRef.get();
+
+        if (!userDoc.exists) {
+            await userRef.set({ stats: { totalSubmissions: 1, totalAccepted: isAccepted ? 1 : 0 } });
+        } else {
+            let updates = { "stats.totalSubmissions": admin.firestore.FieldValue.increment(1) };
+            if (isAccepted) updates["stats.totalAccepted"] = admin.firestore.FieldValue.increment(1);
+            await userRef.update(updates);
+        }
+
+        res.send({ success: true });
+    } catch (e) {
+        console.error("Stat Save Error:", e);
+        res.status(500).send({ error: "Database error" });
+    }
+});
+// -------------------------------------
+
+const { spawn } = require('child_process');
 const judgeDaemon = spawn('judge.exe');
 
 judgeDaemon.stdout.on('data', (data) => {
@@ -136,9 +183,9 @@ judgeDaemon.stderr.on('data', (data) => {
     console.error(`[JUDGE ERROR]: ${data}`);
 });
 
-// close judge as we close the server
 process.on('SIGINT', () => {
     judgeDaemon.kill();
     process.exit();
 });
-app.listen(3000, () => console.log("Running"));
+
+app.listen(3000, () => console.log("Server Running on Port 3000"));
