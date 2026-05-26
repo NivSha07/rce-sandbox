@@ -112,17 +112,22 @@ window.initApp = function() {
 window.toggleMode = function() {
     showProblem = !showProblem;
     let b = document.getElementById('mBtn');
+    let subBtn = document.getElementById('submitBtn'); // Grab the submit button
+    
     if (showProblem) { 
         document.body.classList.add('show-prob'); 
         b.innerText = "Mode: Problem Viewer"; 
         b.style.background = "#8b5cf6"; 
+           
+        if (subBtn) subBtn.style.display = "block"; 
         
-        // Automatically fetch the problem test cases when entering Problem Mode
         window.loadProblem(); 
     } else { 
         document.body.classList.remove('show-prob'); 
         b.innerText = "Mode: Normal"; 
         b.style.background = "#2e344e"; 
+        
+        if (subBtn) subBtn.style.display = "none"; 
     }
     window.saveState();
 };
