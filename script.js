@@ -86,6 +86,11 @@ window.saveState = function() {
 
 window.initApp = function() {
     let saved = localStorage.getItem('rce_data');
+    
+    // Ensure inputs are completely clear on a fresh boot (Normal Mode)
+    document.getElementById('stdInput').value = "";
+    document.getElementById('expectedOutput').value = "";
+
     if (saved) {
         let s = JSON.parse(saved);
         document.getElementById('pSel').value = s.p;
@@ -96,10 +101,6 @@ window.initApp = function() {
         document.getElementById('fInp').value = s.f;
         monaco.editor.setTheme(s.t);
         window.editor.updateOptions({ fontSize: parseInt(s.f) });
-        let p = prb[s.p];
-        document.getElementById('pDsc').innerHTML = p.desc;
-        document.getElementById('stdInput').value = p.tests[0].i;
-        document.getElementById('expectedOutput').value = p.tests[0].e;
         window.editor.setValue(s.c);
         monaco.editor.setModelLanguage(window.editor.getModel(), langVal);
     } else {
@@ -108,7 +109,6 @@ window.initApp = function() {
         monaco.editor.setModelLanguage(window.editor.getModel(), l);
     }
 };
-
 window.toggleMode = function() {
     showProblem = !showProblem;
     let b = document.getElementById('mBtn');
@@ -116,6 +116,9 @@ window.toggleMode = function() {
         document.body.classList.add('show-prob'); 
         b.innerText = "Mode: Problem Viewer"; 
         b.style.background = "#8b5cf6"; 
+        
+        // Automatically fetch the problem test cases when entering Problem Mode
+        window.loadProblem(); 
     } else { 
         document.body.classList.remove('show-prob'); 
         b.innerText = "Mode: Normal"; 
@@ -170,13 +173,13 @@ window.openSettings = function() { let l = document.getElementById('lSel').value
 window.closeSettings = function() { document.getElementById('setMod').style.display = "none"; };
 window.saveSettings = function() { let l = document.getElementById('lSel').value; userBoilerplates[l] = document.getElementById('bpText').value; localStorage.setItem('rce_bp', JSON.stringify(userBoilerplates)); window.closeSettings(); };
 
-window.runCode = async function() {
+window.runCode = async function(isSubmit = false) {
     let s = window.editor.getValue();
     let l = document.getElementById('lSel').value;
     let o = document.getElementById('consoleOutput');
     let b = document.getElementById('statusBadge');
     
-    o.innerText = "Running...";
+    o.innerText = isSubmit ? "Submitting..." : "Running...";
     b.innerText = "";
     
     if (!showProblem) {
@@ -206,7 +209,7 @@ window.runCode = async function() {
                 body: JSON.stringify({ code: s, inputs: ins, language: l })
             });
             let d = await r.json();
-            let h = "<table style='width:100%; text-align:left; border-collapse:collapse;'><tr><th style='border-bottom:1px solid #2e344e; padding:5px;'>Test</th><th style='border-bottom:1px solid #2e344e; padding:5px;'>Status</th><th style='border-bottom:1px solid #2e344e; padding:5px;'>Time</th></tr>";
+            let h = "<table style='width:100%; text-align:left; border-collapse:collapse;'><tr><th style='border-bottom:1px solid var(--border); padding:5px;'>Test</th><th style='border-bottom:1px solid var(--border); padding:5px;'>Status</th><th style='border-bottom:1px solid var(--border); padding:5px;'>Time</th></tr>";
             let allPassed = true;
             for (let j = 0; j < p.tests.length; j++) {
                 let tc = p.tests[j];
@@ -227,13 +230,22 @@ window.runCode = async function() {
                 h += `<div style="margin-top:15px; color:#ef4444; font-family:monospace; white-space:pre-wrap;">${d.results[0].output}</div>`;
             }
             o.innerHTML = h;
-            b.innerText = allPassed ? "🏆 All Tests Passed" : "❌ Tests Failed";
-            b.style.color = allPassed ? "#22c55e" : "#ef4444";
             
-            if (allPassed) {
-                let maxTime = Math.max(...d.results.map(r => parseInt(r.time) || 0));
-                window.saveRun(p.desc.split("</h3>")[0].replace("<h3>", ""), s, l, maxTime);
+            // Adjust messaging and database saving based on Run vs Submit
+            if (isSubmit) {
+                b.innerText = allPassed ? "🌟 Accepted" : "❌ Wrong Answer";
+                b.style.color = allPassed ? "#22c55e" : "#ef4444";
+                
+                // ONLY save to database if it was a Submit AND it passed all tests
+                if (allPassed) {
+                    let maxTime = Math.max(...d.results.map(r => parseInt(r.time) || 0));
+                    window.saveRun(p.desc.split("</h3>")[0].replace("<h3>", ""), s, l, maxTime);
+                }
+            } else {
+                b.innerText = allPassed ? "🏆 All Tests Passed" : "❌ Tests Failed";
+                b.style.color = allPassed ? "#22c55e" : "#ef4444";
             }
+            
         } catch (e) { o.innerText = "Server offline."; }
     }
 };
@@ -308,15 +320,21 @@ setInterval(async () => {
         let r = await fetch('http://localhost:3000/poll-problem');
         let d = await r.json();
         if (d) {
+            // Replaces patterns like "B. " or "C1. " with "Q. "
+            let formattedName = d.name.replace(/^[A-Z]\d*\.\s*/, "Q. ");
+
             prb.push({
-                desc: `<h3>${d.name}</h3><p><a href="${d.url}" target="_blank" style="color:var(--accent); text-decoration:none;">View Original Problem ↗</a><br><br>Time Limit: ${d.timeLimit}ms</p>`,
+                desc: `<h3>${formattedName}</h3><p><a href="${d.url}" target="_blank" style="color:var(--accent); text-decoration:none;">View Original Problem ↗</a><br><br>Time Limit: ${d.timeLimit}ms</p>`,
                 code: prb[0].code, 
                 tests: d.tests
             });
             let sel = document.getElementById('pSel');
             let opt = document.createElement('option');
             opt.value = prb.length - 1;
-            opt.text = `⚡ ${d.name}`;
+            
+            // Updates the dropdown text
+            opt.text = `⚡ ${formattedName}`;
+            
             sel.appendChild(opt);
             sel.value = prb.length - 1;
             if (!showProblem) window.toggleMode();

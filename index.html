@@ -128,7 +128,10 @@ Problem
 <textarea id="stdInput" spellcheck="false"></textarea>
 <details open><summary>Expected Output</summary><textarea id="expectedOutput" spellcheck="false"></textarea></details>
 </div>
-<button onclick="runCode()">Run Execution</button>
+<div style="display:flex; gap:10px;">
+    <button onclick="runCode(false)" style="flex:1; background:#2e344e; color:var(--text-main);">Run Code</button>
+    <button onclick="runCode(true)" style="flex:1; background:#22c55e; color:white;">Submit</button>
+</div>
 <div class="bx" style="flex:0.6;">
 <div class="b-hdr">Console Output <span id="statusBadge"></span></div>
 <pre id="consoleOutput">Awaiting execution...</pre>
@@ -178,10 +181,11 @@ require(['vs/editor/editor.main'],function(){
     window.editor=monaco.editor.create(document.getElementById('editorContainer'),{
         value:"", language:'cpp',theme:'vs-dark',automaticLayout:true,minimap:{enabled:false},fontSize:15
     });
-    window.editor.onDidChangeModelContent(() => { if(window.saveState) window.saveState(); });
     let ci = setInterval(() => {
         if(window.initApp){
             window.initApp();
+            // ONLY start listening for saves AFTER the app has fully booted and loaded the defaults
+            window.editor.onDidChangeModelContent(() => { if(window.saveState) window.saveState(); });
             clearInterval(ci);
         }
     }, 100);
