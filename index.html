@@ -5,6 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RCE Sandbox Pro</title>
 <style>
+.gear-btn { background:transparent; border:none; padding:0; font-size:1.4rem; cursor:pointer; box-shadow:none; transition:transform 0.3s ease; display:flex; align-items:center; }
+.gear-btn:hover { background:transparent; transform:rotate(90deg); box-shadow:none; }
+.d-itm { 
+    padding: 10px 15px; 
+    margin: 4px; 
+    cursor: pointer; 
+    font-size: 0.95rem; 
+    font-weight: 500; 
+    color: var(--text-muted); 
+    border-radius: 4px;
+    transition: all 0.2s ease; 
+}
+.d-itm:hover { 
+    background: var(--accent); 
+    color: #ffffff; 
+    transform: translateX(4px); 
+}
 :root{--bg-color:#0f111a;--panel-bg:#1e1e1e;--text-main:#e2e8f0;--text-muted:#a6accd;--accent:#3b82f6;--accent-hover:#2563eb;--border:#2e344e;}
 body{margin:0;padding:20px;background-color:var(--bg-color);color:var(--text-main);font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;height:100vh;box-sizing:border-box;}
 header{margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
@@ -29,7 +46,6 @@ details{border-top:1px solid var(--border);}
 summary{padding:10px 15px;font-size:0.85rem;color:var(--text-muted);cursor:pointer;user-select:none;background:#1e1e1e;}
 #expectedOutput{height:80px;border-top:1px solid var(--border);color:#ffcb6b;}
 #statusBadge{font-weight:bold;font-size:0.9rem;}
-.c-bx{padding:15px;background:#1a1c29;border-top:1px solid var(--border);display:none;}
 ::-webkit-scrollbar{width:8px;}
 ::-webkit-scrollbar-track{background:var(--bg-color);}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
@@ -42,12 +58,17 @@ button{box-shadow:0 4px 6px -1px rgba(59,130,246,0.2),0 2px 4px -1px rgba(59,130
 button:hover{transform:translateY(-2px);box-shadow:0 10px 15px -3px rgba(59,130,246,0.3),0 4px 6px -2px rgba(59,130,246,0.15);}
 button:active{transform:translateY(0);}
 textarea:focus,select:focus,input:focus{box-shadow:inset 0 0 0 1px var(--accent);}
-body.nmd .p-pan{display:none;}
-body.nmd .e-pan{flex:6;}
-body.nmd .r-pan{flex:4;}
-body.nmd details{display:none;}
-body.nmd #chartBox{display:none !important;}
+/* Default Layout: Normal Mode (2 Panels) */
+.p-pan { display: none; }
+.e-pan { flex: 6; }
+.r-pan { flex: 4; }
+details { display: none; }
 
+/* Toggled Layout: Problem Mode (3 Panels) */
+body.show-prob .p-pan { display: flex; flex: 3; flex-direction: column; gap: 15px; overflow-y: auto; }
+body.show-prob .e-pan { flex: 4; }
+body.show-prob .r-pan { flex: 3; }
+body.show-prob details { display: block; }
 /* Modal CSS */
 .modal{display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); align-items:center; justify-content:center; z-index:100;}
 .modal-content{background:var(--panel-bg); padding:20px; border-radius:8px; border:1px solid var(--border); width:500px;}
@@ -56,24 +77,32 @@ body.nmd #chartBox{display:none !important;}
 </head>
 <body>
 <header>
-<h2>
-    RCE Execution Environment
-    <button onclick="openSettings()" style="padding:6px 12px;font-size:0.8rem;background:#4ade80;color:#0f111a;">⚙️ Boilerplate Settings</button>
-</h2>
-<div style="display:flex; align-items:center; gap:10px;">
-    <div id="uBx">
-        <button onclick="lg()" style="padding:8px 15px;font-size:0.9rem;background:#24292e;">Google Login</button>
+    <div style="display:flex; align-items:center; gap:15px; position:relative;">
+        <div style="position:relative;">
+            <button class="gear-btn" onclick="toggleDrop(event)">⚙️</button>
+            
+            <div id="setDrop" style="display:none; position:absolute; top:120%; left:0; background:var(--panel-bg); border:1px solid var(--border); border-radius:6px; min-width:200px; z-index:1000; box-shadow:0 8px 16px rgba(0,0,0,0.4); padding:5px 0;">
+                <div class="d-itm" onclick="openSettings(); toggleDrop(event);">📝 Boilerplate Settings</div>
+                <div class="d-itm" onclick="openColorSettings(); toggleDrop(event);">🎨 Appearance</div>
+            </div>
+        </div>
+        
+        <h2>RCE Execution Environment</h2>
     </div>
-    <button id="vBtn" onclick="toggleVis()" style="padding:8px 15px;font-size:0.9rem;background:var(--accent);">📊 Visualizer: ON</button>
-    <button id="mBtn" onclick="toggleMode()" style="padding:8px 15px;font-size:0.9rem;background:#2e344e;">Normal Mode</button>
-</div>
+
+    <div style="display:flex; align-items:center; gap:10px;">
+        <div id="uBx">
+            <button onclick="lg()" style="padding:8px 15px;font-size:0.9rem;background:#24292e;">Google Login</button>
+        </div>
+        <button id="mBtn" onclick="toggleMode()" style="padding:8px 15px;font-size:0.9rem;background:#2e344e;">Mode: Normal</button>
+    </div>
 </header>
 <div class="cnt">
 <div class="p-pan">
 <div class="bx" style="flex:1;">
 <div class="b-hdr">
 Problem
-<select id="pSel" onchange="loadProblem()" style="background:#1a1c29;color:var(--text-main);border:1px solid var(--border);padding:2px 5px;border-radius:4px;outline:none;font-size:0.8rem;">
+<select id="pSel" onchange="loadProblem()" style="background:#1b2352;color:var(--text-main);border:1px solid var(--border);padding:2px 5px;border-radius:4px;outline:none;font-size:0.8rem;">
 <option value="0">A. Array Prefix Sums</option>
 <option value="1">B. Indicator Variables</option>
 </select>
@@ -83,7 +112,7 @@ Problem
 </div>
 <div class="e-pan">
 <div class="bx">
-<div class="b-hdr">source.cpp</div>
+<div class="b-hdr">Editor</div>
 <div class="t-bar">
 <div><label>Lang: </label><select id="lSel" onchange="changeLanguage()"><option value="cpp">C++</option><option value="python">Python</option><option value="java">Java</option></select></div>
 <div><label>Theme: </label><select id="tSel" onchange="changeTheme()"><option value="vs-dark">Dark</option><option value="vs">Light</option><option value="hc-black">High Contrast</option></select></div>
@@ -103,7 +132,6 @@ Problem
 <div class="bx" style="flex:0.6;">
 <div class="b-hdr">Console Output <span id="statusBadge"></span></div>
 <pre id="consoleOutput">Awaiting execution...</pre>
-<div class="c-bx" id="chartBox"><canvas id="outputChart"></canvas></div>
 </div>
 </div>
 </div>
@@ -120,7 +148,29 @@ Problem
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<div id="colorMod" class="modal">
+    <div class="modal-content" style="width: 400px;">
+        <h3 style="margin-top:0;">Appearance Settings</h3>
+        <div style="display:flex; flex-direction:column; gap:15px; margin-top:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label style="color:var(--text-muted);">App Background Color</label>
+                <input type="color" id="bgColorInp" style="background:transparent; border:none; cursor:pointer; width:50px; height:30px;">
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label style="color:var(--text-muted);">Panel Background Color</label>
+                <input type="color" id="panelBgColorInp" style="background:transparent; border:none; cursor:pointer; width:50px; height:30px;">
+            </div>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:25px;">
+            <button onclick="resetColorSettings()" style="background:#ef4444; color:white;">Reset Defaults</button>
+            <div style="display:flex; gap:10px;">
+                <button onclick="closeColorSettings()" style="background:#2e344e;">Cancel</button>
+                <button onclick="applyColorSettings()">Save Colors</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.38.0/min/vs/loader.min.js"></script>
 <script>
 require.config({paths:{'vs':'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.38.0/min/vs'}});

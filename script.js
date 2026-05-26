@@ -36,11 +36,19 @@ onAuthStateChanged(au, (u) => {
     }
 });
 
-
-let ch = null;
-let nmd = false;
-let visOn = true;
+let showProblem = false;
 let userBoilerplates = JSON.parse(localStorage.getItem('rce_bp')) || {};
+const defaultTheme = { bg: "#1a1a1a", panel: "#282828" };
+let userTheme = JSON.parse(localStorage.getItem('rce_theme')) || defaultTheme;
+
+document.documentElement.style.setProperty('--bg-color', userTheme.bg);
+document.documentElement.style.setProperty('--panel-bg', userTheme.panel);
+
+const defaultCode = {
+    cpp: "#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << \"Hello World!\\n\";\n    return 0;\n}",
+    python: "print(\"Hello World!\")",
+    java: "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
+};
 
 const prb = [
     {
@@ -71,8 +79,7 @@ window.saveState = function() {
         t: document.getElementById('tSel').value,
         f: document.getElementById('fInp').value,
         c: window.editor.getValue(),
-        m: nmd,
-        v: visOn 
+        m: showProblem
     };
     localStorage.setItem('rce_data', JSON.stringify(state));
 };
@@ -95,33 +102,25 @@ window.initApp = function() {
         document.getElementById('expectedOutput').value = p.tests[0].e;
         window.editor.setValue(s.c);
         monaco.editor.setModelLanguage(window.editor.getModel(), langVal);
-        if (s.m) { nmd = false; window.toggleMode(); }
-        if (s.v !== undefined) { visOn = !s.v; window.toggleVis(); }
     } else {
-        window.loadProblem();
+        let l = document.getElementById('lSel').value;
+        window.editor.setValue(userBoilerplates[l] ? userBoilerplates[l] : defaultCode[l]);
+        monaco.editor.setModelLanguage(window.editor.getModel(), l);
     }
-};
-
-window.toggleVis = function() {
-    visOn = !visOn;
-    let b = document.getElementById('vBtn');
-    if (visOn) {
-        b.innerText = "📊 Visualizer: ON";
-        b.style.background = "#3b82f6";
-    } else {
-        b.innerText = "📊 Visualizer: OFF";
-        b.style.background = "#2e344e";
-        document.getElementById('chartBox').style.display = "none";
-        if (ch) ch.destroy();
-    }
-    window.saveState();
 };
 
 window.toggleMode = function() {
-    nmd = !nmd;
+    showProblem = !showProblem;
     let b = document.getElementById('mBtn');
-    if (nmd) { document.body.classList.add('nmd'); b.innerText = "CP Mode"; } 
-    else { document.body.classList.remove('nmd'); b.innerText = "Normal Mode"; }
+    if (showProblem) { 
+        document.body.classList.add('show-prob'); 
+        b.innerText = "Mode: Problem Viewer"; 
+        b.style.background = "#8b5cf6"; 
+    } else { 
+        document.body.classList.remove('show-prob'); 
+        b.innerText = "Mode: Normal"; 
+        b.style.background = "#2e344e"; 
+    }
     window.saveState();
 };
 
@@ -138,21 +137,33 @@ window.loadProblem = function() {
     }
     document.getElementById('consoleOutput').innerText = "Awaiting execution...";
     document.getElementById('statusBadge').innerText = "";
-    document.getElementById('chartBox').style.display = "none";
-    if (ch) ch.destroy();
     window.saveState();
 };
 
 window.resetCode = function() {
-    if (confirm("Wipe editor and reset to problem code?")) {
-        let x = document.getElementById('pSel').value;
+    if (confirm("Wipe editor and reset code?")) {
         let l = document.getElementById('lSel').value;
-        window.editor.setValue(userBoilerplates[l] ? userBoilerplates[l] : prb[x].code[l]);
+        if (showProblem) {
+            let x = document.getElementById('pSel').value;
+            window.editor.setValue(userBoilerplates[l] ? userBoilerplates[l] : prb[x].code[l]);
+        } else {
+            window.editor.setValue(userBoilerplates[l] ? userBoilerplates[l] : defaultCode[l]);
+        }
         window.saveState();
     }
 };
 
-window.changeLanguage = function() { window.loadProblem(); };
+window.changeLanguage = function() { 
+    let l = document.getElementById('lSel').value;
+    monaco.editor.setModelLanguage(window.editor.getModel(), l);
+    if (showProblem) {
+        window.loadProblem(); 
+    } else {
+        window.editor.setValue(userBoilerplates[l] ? userBoilerplates[l] : defaultCode[l]);
+    }
+    window.saveState();
+};
+
 window.changeTheme = function() { monaco.editor.setTheme(document.getElementById('tSel').value); window.saveState(); };
 window.changeFont = function() { window.editor.updateOptions({ fontSize: parseInt(document.getElementById('fInp').value) }); window.saveState(); };
 window.openSettings = function() { let l = document.getElementById('lSel').value; document.getElementById('bpText').value = userBoilerplates[l] || prb[0].code[l]; document.getElementById('setMod').style.display = "flex"; };
@@ -164,14 +175,11 @@ window.runCode = async function() {
     let l = document.getElementById('lSel').value;
     let o = document.getElementById('consoleOutput');
     let b = document.getElementById('statusBadge');
-    let c = document.getElementById('chartBox');
     
     o.innerText = "Running...";
     b.innerText = "";
-    c.style.display = "none";
-    if (ch) ch.destroy();
     
-    if (nmd) {
+    if (!showProblem) {
         let i = document.getElementById('stdInput').value;
         try {
             let r = await fetch('http://localhost:3000/run', {
@@ -186,7 +194,6 @@ window.runCode = async function() {
                 o.innerText = res.output; b.innerText = `⚠️ Error`; b.style.color = "#ef4444";
             } else {
                 o.innerText = res.output; b.innerText = `⚡ ${res.time}ms`; b.style.color = "#a6accd";
-                if (visOn) window.drawGraph(res.output); 
             }
         } catch (e) { o.innerText = "Server offline."; }
     } else {
@@ -213,7 +220,6 @@ window.runCode = async function() {
                     if (!pass) allPassed = false;
                     let st = pass ? "<span style='color:#22c55e;'>✅ Passed</span>" : "<span style='color:#ef4444;'>❌ Failed</span>";
                     h += `<tr><td style='padding:5px;'>Case ${j+1}</td><td style='padding:5px;'>${st}</td><td style='padding:5px;'>${res.time}ms</td></tr>`;
-                    if (j === 0 && pass && visOn) window.drawGraph(res.output);
                 }
             }
             h += "</table>";
@@ -223,7 +229,7 @@ window.runCode = async function() {
             o.innerHTML = h;
             b.innerText = allPassed ? "🏆 All Tests Passed" : "❌ Tests Failed";
             b.style.color = allPassed ? "#22c55e" : "#ef4444";
-            // Save to database if all tests passed
+            
             if (allPassed) {
                 let maxTime = Math.max(...d.results.map(r => parseInt(r.time) || 0));
                 window.saveRun(p.desc.split("</h3>")[0].replace("<h3>", ""), s, l, maxTime);
@@ -232,21 +238,7 @@ window.runCode = async function() {
     }
 };
 
-window.drawGraph = function(t) {
-    let a = t.trim().split(/\s+/).filter(x => x !== "");
-    if (a.length < 2) return;
-    let n = a.map(Number);
-    if (n.some(isNaN)) return;
-    document.getElementById('chartBox').style.display = "block";
-    let cx = document.getElementById('outputChart').getContext('2d');
-    ch = new Chart(cx, {
-        type: 'bar',
-        data: { labels: n.map((_, i) => i), datasets: [{ data: n, backgroundColor: '#3b82f6', borderRadius: 4 }] },
-        options: { responsive: true, scales: { y: { grid: { color: '#2e344e' }, ticks: { color: '#a6accd' } }, x: { grid: { color: '#2e344e' }, ticks: { color: '#a6accd' } } }, plugins: { legend: { display: false } } }
-    });
-};
 window.saveRun = async (problemName, code, lang, timeMs) => {
-    // If they aren't logged in, don't try to save
     if (!au.currentUser) return; 
     
     try {
@@ -265,6 +257,52 @@ window.saveRun = async (problemName, code, lang, timeMs) => {
     }
 };
 
+window.openColorSettings = function() {
+    document.getElementById('bgColorInp').value = userTheme.bg;
+    document.getElementById('panelBgColorInp').value = userTheme.panel;
+    document.getElementById('colorMod').style.display = "flex";
+};
+
+window.closeColorSettings = function() {
+    document.getElementById('colorMod').style.display = "none";
+};
+
+window.applyColorSettings = function() {
+    let bg = document.getElementById('bgColorInp').value;
+    let panel = document.getElementById('panelBgColorInp').value;
+    userTheme = { bg: bg, panel: panel };
+    localStorage.setItem('rce_theme', JSON.stringify(userTheme));
+    
+    document.documentElement.style.setProperty('--bg-color', bg);
+    document.documentElement.style.setProperty('--panel-bg', panel);
+    window.closeColorSettings();
+};
+window.resetColorSettings = function() {
+    // Delete the saved custom colors from memory
+    localStorage.removeItem('rce_theme');
+    
+    // Snap back to the LeetCode defaults
+    userTheme = { ...defaultTheme };
+    document.documentElement.style.setProperty('--bg-color', userTheme.bg);
+    document.documentElement.style.setProperty('--panel-bg', userTheme.panel);
+    
+    window.closeColorSettings();
+};
+// Toggle the dropdown visibility
+window.toggleDrop = function(e) {
+    if (e) e.stopPropagation(); // Prevent the click from instantly closing it
+    let d = document.getElementById('setDrop');
+    d.style.display = (d.style.display === 'block') ? 'none' : 'block';
+};
+
+// Close dropdown if the user clicks anywhere else on the screen
+window.addEventListener('click', function() {
+    let d = document.getElementById('setDrop');
+    if (d && d.style.display === 'block') {
+        d.style.display = 'none';
+    }
+});
+
 setInterval(async () => {
     try {
         let r = await fetch('http://localhost:3000/poll-problem');
@@ -281,7 +319,7 @@ setInterval(async () => {
             opt.text = `⚡ ${d.name}`;
             sel.appendChild(opt);
             sel.value = prb.length - 1;
-            if (!nmd) window.toggleMode();
+            if (!showProblem) window.toggleMode();
             window.loadProblem();
         }
     } catch (e) {} 

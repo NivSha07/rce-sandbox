@@ -123,5 +123,22 @@ app.post('/run', (req, res) => {
 
     setTimeout(() => cln(b), 10000); 
 });
+const { spawn } = require('child_process');
 
+// no external command needed for judge now
+const judgeDaemon = spawn('judge.exe');
+
+judgeDaemon.stdout.on('data', (data) => {
+    console.log(`${data}`.trim());
+});
+
+judgeDaemon.stderr.on('data', (data) => {
+    console.error(`[JUDGE ERROR]: ${data}`);
+});
+
+// close judge as we close the server
+process.on('SIGINT', () => {
+    judgeDaemon.kill();
+    process.exit();
+});
 app.listen(3000, () => console.log("Running"));
