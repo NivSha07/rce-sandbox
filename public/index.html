@@ -223,7 +223,13 @@
 <div id="probLib">
     <div style="max-width:1050px; margin:0 auto;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:30px;">
-            <h2 style="margin:0; font-family:var(--font-heading); font-size:2rem; font-weight:800; color:var(--text-main);">Problem Library</h2>
+            <div style="display:flex; align-items:center; gap:24px;">
+                <h2 style="margin:0; font-family:var(--font-heading); font-size:2rem; font-weight:800; color:var(--text-main);">Problem Library</h2>
+                <div class="lib-toggle-container">
+                    <button id="toggleRCE" class="lib-toggle-btn active" onclick="switchLibraryTab('rce')">RCE Problems</button>
+                    <button id="toggleYour" class="lib-toggle-btn" onclick="switchLibraryTab('your')">Your Problems</button>
+                </div>
+            </div>
             <button onclick="closeLibrary()" class="secondary" style="padding:10px 18px;">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:14px;height:14px;">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />

@@ -308,12 +308,33 @@ window.saveSubmission = async (problemName, lang, timeMs, statusStr, isAccepted)
     await sendStats(problemName, lang, timeMs, statusStr, isAccepted);
 };
 
+window.currentLibraryTab = 'rce';
+
+window.switchLibraryTab = function(tab) {
+    window.currentLibraryTab = tab;
+    let rceBtn = document.getElementById('toggleRCE');
+    let yourBtn = document.getElementById('toggleYour');
+    
+    if (tab === 'rce') {
+        rceBtn.classList.add('active');
+        yourBtn.classList.remove('active');
+    } else {
+        rceBtn.classList.remove('active');
+        yourBtn.classList.add('active');
+    }
+    window.openLibrary();
+};
+
 window.openLibrary = function() {
     let tbody = document.getElementById('libBody');
     let html = "";
     
     for (let i = 0; i < prb.length; i++) {
         let p = prb[i];
+        
+        // Filter based on selected tab
+        if (window.currentLibraryTab === 'rce' && p.isCF) continue;
+        if (window.currentLibraryTab === 'your' && !p.isCF) continue;
         
         // Extract the title from the h3 tag in the description
         let titleMatch = p.desc.match(/<h3>(.*?)<\/h3>/);
@@ -334,6 +355,22 @@ window.openLibrary = function() {
                 <td><span class="diff-badge ${diffClass}">${diff}</span></td>
                 <td style="text-align:right;">
                     <button onclick="selectProblemFromLib(${i})" style="padding:6px 14px; font-size:0.8rem; border-radius:6px;">Solve</button>
+                </td>
+            </tr>
+        `;
+    }
+
+    // Beautiful premium empty state fallback
+    if (html === "") {
+        html = `
+            <tr>
+                <td colspan="4" style="text-align:center; padding:60px 20px; color:var(--text-muted);">
+                    <div style="font-size:1.1rem; font-weight:600; margin-bottom:8px; color:var(--text-main);">No problems found</div>
+                    <div style="font-size:0.85rem; max-width: 450px; margin: 0 auto; line-height: 1.5;">
+                        ${window.currentLibraryTab === 'rce' 
+                            ? 'The RCE problems database is currently empty.' 
+                            : 'Fetch external problems from Codeforces using Competitive Companion to build your private synced library!'}
+                    </div>
                 </td>
             </tr>
         `;
