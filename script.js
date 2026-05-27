@@ -51,6 +51,7 @@ const defaultCode = {
 
 const prb = [
     {
+        difficulty: "Easy",
         desc: "<h3>A. Array Prefix Sums</h3><p>Output an array of size <code>n</code> where the <code>i-th</code> element is the sum of integers from 1 to i.</p>",
         code: {
             cpp: "#include<bits/stdc++.h>\nusing namespace std;\n#define ll long long\n#define pb push_back\n#define fast_io ios_base::sync_with_stdio(false);cin.tie(NULL);\nint main(){\n    fast_io;\n    int n; cin>>n;\n    ll s=0;\n    for(int i=1;i<=n;i++){\n        s+=i; cout<<s<<\" \";\n    }\n    return 0;\n}",
@@ -62,6 +63,7 @@ const prb = [
         hiddenTests: [ { i: "7", e: "1 3 6 10 15 21 28" }, { i: "10", e: "1 3 6 10 15 21 28 36 45 55" } ] 
     },
     {
+        difficulty: "Medium",
         desc: "<h3>B. Indicator Variables</h3><p>Calculate the total number of times a '1' is immediately followed by another '1'.</p>",
         code: {
             cpp: "#include<bits/stdc++.h>\nusing namespace std;\n#define ll long long\n#define pb push_back\n#define fast_io ios_base::sync_with_stdio(false);cin.tie(NULL);\nint main(){\n    fast_io;\n    int n; cin>>n;\n    vector<int> a(n);\n    for(int i=0;i<n;i++) cin>>a[i];\n    int c=0;\n    for(int i=0;i<n-1;i++){\n        if(a[i]==1 && a[i+1]==1) c++;\n    }\n    cout<<c<<\"\\n\";\n    return 0;\n}",
@@ -395,6 +397,61 @@ window.openProfile = async function() {
 
 window.closeProfile = function() {
     document.getElementById('profileMod').style.display = "none";
+};
+
+window.openLibrary = function() {
+    let tbody = document.getElementById('libBody');
+    let html = "";
+    
+    for (let i = 0; i < prb.length; i++) {
+        let p = prb[i];
+        
+        // Extract the title from the h3 tag in the description
+        let titleMatch = p.desc.match(/<h3>(.*?)<\/h3>/);
+        let title = titleMatch ? titleMatch[1] : `Problem ${i + 1}`;
+        
+        // Determine difficulty color
+        let diff = p.difficulty || "Unknown";
+        let diffColor = "#a6accd"; // Default gray
+        if (diff === "Easy") diffColor = "#22c55e"; // Green
+        if (diff === "Medium") diffColor = "#eab308"; // Yellow
+        if (diff === "Hard") diffColor = "#ef4444"; // Red
+
+        // LeetCode-style table row with hover effect
+        html += `
+            <tr style="border-bottom:1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+                <td style="padding:15px 20px; color:var(--text-muted);">—</td>
+                <td style="padding:15px 20px; font-weight:bold; color:var(--text-main);">${title}</td>
+                <td style="padding:15px 20px; color:${diffColor};">${diff}</td>
+                <td style="padding:15px 20px; text-align:right;">
+                    <button onclick="selectProblemFromLib(${i})" style="background:var(--accent); color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">Solve</button>
+                </td>
+            </tr>
+        `;
+    }
+    
+    tbody.innerHTML = html;
+    document.getElementById('probLib').style.display = 'block';
+};
+
+window.closeLibrary = function() {
+    document.getElementById('probLib').style.display = 'none';
+};
+
+window.selectProblemFromLib = function(index) {
+    // 1. Close the library overlay
+    closeLibrary();
+    
+    // 2. Update the hidden dropdown menu
+    document.getElementById('pSel').value = index;
+    
+    // 3. Force the app into Problem Viewer Mode if it isn't already
+    if (!showProblem) {
+        window.toggleMode(); 
+    } else {
+        // If already in problem mode, just load the new data
+        window.loadProblem();
+    }
 };
 
 setInterval(async () => {
