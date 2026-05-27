@@ -1,5 +1,5 @@
 import { au, db, pr, signInWithPopup, onAuthStateChanged, signOut, doc, getDoc, getDocs, setDoc, collection } from './firebase.js';
-import { executeCode, sendStats, pollCompanion } from './api.js';
+import { executeCode, sendStats, pollCompanion, fetchProblemStats } from './api.js';
 import './ui.js';
 import { defaultCode, userBoilerplates } from './editor.js';
 
@@ -42,7 +42,9 @@ onAuthStateChanged(au, async (u) => {
     if (admBtn) admBtn.style.display = window.isAdmin ? "inline-flex" : "none";
 
     // Reload database problems when auth state changes to fetch correct private list
-    window.loadDatabaseProblems();
+    window.loadDatabaseProblems(u);
+    // Reload problem-specific statistics when auth state changes
+    window.updateProblemStats();
 });
 
 let showProblem = false;
@@ -66,8 +68,10 @@ const defaultPrb = [
     }
 ];
 
-window.loadDatabaseProblems = async () => {
+window.loadDatabaseProblems = async (user) => {
     try {
+        let currentUser = user !== undefined ? user : au.currentUser;
+
         // 1. Fetch common/public problems with guest/unauthenticated fallback
         let commonSnap = null;
         try {
@@ -92,9 +96,9 @@ window.loadDatabaseProblems = async () => {
         }
 
         // 2. Fetch private user-specific problems if logged in
-        if (au.currentUser) {
+        if (currentUser) {
             try {
-                let privateSnap = await getDocs(collection(db, "users", au.currentUser.uid, "problems"));
+                let privateSnap = await getDocs(collection(db, "users", currentUser.uid, "problems"));
                 privateSnap.forEach(docSnap => {
                     let pData = docSnap.data();
                     prb.push(pData);
@@ -345,7 +349,10 @@ window.runCode = async function(isSubmit = false) {
 };
 
 window.saveSubmission = async (problemName, lang, timeMs, statusStr, isAccepted) => {
-    await sendStats(problemName, lang, timeMs, statusStr, isAccepted);
+    let code = window.editor ? window.editor.getValue() : "";
+    await sendStats(problemName, lang, timeMs, statusStr, isAccepted, code);
+    // Refresh stats and submission history instantly
+    setTimeout(window.updateProblemStats, 800);
 };
 
 window.currentLibraryTab = 'rce';
@@ -612,3 +619,142 @@ setInterval(async () => {
             window.loadProblem();
     }
 }, 1000);
+
+// --- PREMIUM LEETCODE-STYLE PROBLEM STATS AND SUBMISSIONS ACTIONS ---
+window.updateProblemStats = async () => {
+    let x = document.getElementById('pSel').value;
+    let p = prb[x];
+    if (!p) return;
+
+    let titleMatch = p.desc.match(/<h3>(.*?)<\/h3>/);
+    let problemName = titleMatch ? titleMatch[1] : `Problem`;
+
+    let stats = await fetchProblemStats(problemName);
+
+    let pSubmissionsEl = document.getElementById('pSubmissions');
+    let pAcceptedEl = document.getElementById('pAccepted');
+    let pRateEl = document.getElementById('pRate');
+    let pSubListEl = document.getElementById('pSubList');
+
+    if (!pSubmissionsEl || !pAcceptedEl || !pRateEl || !pSubListEl) return;
+
+    if (!stats) {
+        pSubmissionsEl.innerText = "—";
+        pAcceptedEl.innerText = "—";
+        pRateEl.innerText = "—";
+        pSubListEl.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 0.78rem; padding: 24px 0;">Failed to load stats.</div>`;
+        return;
+    }
+
+    pSubmissionsEl.innerText = stats.totalSubmissions;
+    pAcceptedEl.innerText = stats.totalAccepted;
+    let rate = stats.totalSubmissions === 0 ? 0 : Math.round((stats.totalAccepted / stats.totalSubmissions) * 100);
+    pRateEl.innerText = rate + "%";
+
+    let html = "";
+    if (stats.userSubmissions && stats.userSubmissions.length > 0) {
+        stats.userSubmissions.forEach(sub => {
+            let statusColor = "var(--danger)";
+            let statusIcon = `
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:2px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+            `;
+            if (sub.status === "Accepted") {
+                statusColor = "var(--success)";
+                statusIcon = `
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:2px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                `;
+            } else if (sub.status.includes("Pending") || sub.status.includes("Running")) {
+                statusColor = "var(--text-muted)";
+                statusIcon = `
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:2px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                    </svg>
+                `;
+            }
+
+            let dateStr = new Date(sub.timestamp).toLocaleDateString(undefined, {
+                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+
+            // Modern glassmorphic row card with code action elements
+            html += `
+                <div class="bx" style="padding: 12px; background: rgba(255,255,255,0.01); display: flex; flex-direction: column; gap: 8px; border-color: rgba(255,255,255,0.03); margin-bottom: 2px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color:${statusColor}; font-weight: 800; font-size: 0.8rem; display: inline-flex; align-items: center;">
+                            ${statusIcon} ${sub.status}
+                        </span>
+                        <span style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">${sub.time}ms | ${sub.language.toUpperCase()}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed rgba(255,255,255,0.03); padding-top: 6px;">
+                        <span style="font-size: 0.7rem; color: var(--text-dark); font-weight: 500;">${dateStr}</span>
+                        <div style="display: flex; gap: 6px;">
+                            <button onclick="window.viewSubmittedCode('${sub.id}')" class="secondary" style="padding: 3px 8px; font-size: 0.68rem; border-radius: 4px; line-height: 1; height: auto; box-shadow: none; font-weight: 600;">Code</button>
+                            <button onclick="window.restoreSubmittedCode('${sub.id}')" class="success" style="padding: 3px 8px; font-size: 0.68rem; border-radius: 4px; line-height: 1; height: auto; box-shadow: none; font-weight: 600;">Load</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        window.loadedSubmissions = stats.userSubmissions;
+    } else {
+        html = `<div style="text-align: center; color: var(--text-muted); font-size: 0.78rem; padding: 24px 0;">No submissions yet.</div>`;
+    }
+
+    pSubListEl.innerHTML = html;
+};
+
+window.viewSubmittedCode = (subId) => {
+    let sub = window.loadedSubmissions?.find(s => s.id === subId);
+    if (!sub) return;
+
+    let codeViewModal = document.getElementById('codeViewMod');
+    if (!codeViewModal) {
+        codeViewModal = document.createElement('div');
+        codeViewModal.id = 'codeViewMod';
+        codeViewModal.className = 'modal';
+        codeViewModal.innerHTML = `
+            <div class="modal-content" style="width: 650px; max-width: 95%;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--panel-border); padding-bottom:15px; margin-bottom:20px;">
+                    <h3 style="margin:0; color:var(--text-main); font-family:var(--font-heading); font-weight:800;" id="codeViewTitle">Submitted Code</h3>
+                    <button onclick="document.getElementById('codeViewMod').style.display = 'none'" class="secondary" style="border:none; padding:4px; font-size:1.1rem; line-height:1;">✖</button>
+                </div>
+                <pre id="codeViewContent" style="background: rgba(8, 10, 18, 0.6); padding: 15px; border-radius: 8px; border: 1px solid var(--panel-border); max-height: 350px; overflow-y: auto; color: #e2e8f0; font-family: var(--font-mono); font-size: 0.8rem; text-align: left;"></pre>
+                <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:20px; border-top:1px solid var(--panel-border); padding-top:15px;">
+                    <button onclick="document.getElementById('codeViewMod').style.display = 'none'" class="secondary" style="padding:8px 16px; font-size:0.85rem;">Close</button>
+                    <button id="codeViewLoadBtn" class="success" style="padding:8px 16px; font-size:0.85rem;">Load Into Editor</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(codeViewModal);
+    }
+
+    document.getElementById('codeViewContent').innerText = sub.code;
+    document.getElementById('codeViewTitle').innerText = `Submitted Code (${sub.language.toUpperCase()} | ${sub.status})`;
+
+    document.getElementById('codeViewLoadBtn').onclick = () => {
+        window.restoreSubmittedCode(subId);
+        codeViewModal.style.display = 'none';
+    };
+
+    codeViewModal.style.display = 'flex';
+};
+
+window.restoreSubmittedCode = (subId) => {
+    let sub = window.loadedSubmissions?.find(s => s.id === subId);
+    if (!sub) return;
+
+    if (confirm(`Load this ${sub.language.toUpperCase()} submission into your editor? It will overwrite your current code.`)) {
+        let lSel = document.getElementById('lSel');
+        lSel.value = sub.language;
+        monaco.editor.setModelLanguage(window.editor.getModel(), sub.language);
+
+        window.editor.setValue(sub.code);
+        window.saveState();
+        alert("Submission code loaded successfully into editor!");
+    }
+};

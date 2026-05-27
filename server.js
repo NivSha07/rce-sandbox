@@ -169,11 +169,17 @@ app.post('/save-stat', async (req, res) => {
         let decodedToken = await admin.auth().verifyIdToken(token);
         let uid = decodedToken.uid;
 
-        let { problem, language, time, status, isAccepted } = req.body;
+        let { problem, language, time, status, isAccepted, code } = req.body;
 
         // 1. Log the submission
         await db.collection('submissions').add({
-            uid: uid, problem: problem, language: language, status: status, time: time, timestamp: Date.now()
+            uid: uid, 
+            problem: problem, 
+            language: language, 
+            status: status, 
+            time: time, 
+            timestamp: Date.now(),
+            code: code || ""
         });
 
         // 2. Safely increment user profile stats
@@ -192,6 +198,73 @@ app.post('/save-stat', async (req, res) => {
     } catch (e) {
         console.error("Stat Save Error:", e);
         res.status(500).send({ error: "Database error" });
+    }
+});
+
+// --- NEW: GET STATS AND SUBMISSIONS HISTORY FOR A SPECIFIC PROBLEM ---
+app.get('/problem-stats/:problemName', async (req, res) => {
+    let token = req.headers.authorization?.split('Bearer ')[1];
+    let problemName = req.params.problemName;
+
+    try {
+        let uid = null;
+        if (token) {
+            try {
+                let decodedToken = await admin.auth().verifyIdToken(token);
+                uid = decodedToken.uid;
+            } catch(e) {
+                console.warn("[Stats auth warning]: Invalid token passed", e.message);
+            }
+        }
+
+        // 1. Fetch ALL submissions for this problem to calculate global stats
+        let allSubsSnap = await db.collection('submissions')
+            .where('problem', '==', problemName)
+            .get();
+
+        let totalSubmissions = allSubsSnap.size;
+        let totalAccepted = 0;
+
+        allSubsSnap.forEach(docSnap => {
+            let data = docSnap.data();
+            if (data.status === 'Accepted' || data.isAccepted === true) {
+                totalAccepted++;
+            }
+        });
+
+        // 2. Fetch specific user's submissions for this problem if uid is present
+        let userSubs = [];
+        if (uid) {
+            let userSubsSnap = await db.collection('submissions')
+                .where('uid', '==', uid)
+                .where('problem', '==', problemName)
+                .get();
+
+            userSubsSnap.forEach(docSnap => {
+                let data = docSnap.data();
+                userSubs.push({
+                    id: docSnap.id,
+                    language: data.language,
+                    status: data.status,
+                    time: data.time,
+                    timestamp: data.timestamp,
+                    code: data.code || ""
+                });
+            });
+
+            // Sort in memory by timestamp desc for maximum index safety
+            userSubs.sort((a, b) => b.timestamp - a.timestamp);
+        }
+
+        res.json({
+            totalSubmissions,
+            totalAccepted,
+            userSubmissions: userSubs
+        });
+
+    } catch(e) {
+        console.error("Error fetching problem stats:", e);
+        res.status(500).json({ error: "Failed to fetch stats" });
     }
 });
 // -------------------------------------

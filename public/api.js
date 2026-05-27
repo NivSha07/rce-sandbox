@@ -16,7 +16,7 @@ export const executeCode = async (code, inputs, language) => {
 };
 
 // 2. Securely save stats to your backend
-export const sendStats = async (problemName, lang, timeMs, statusStr, isAccepted) => {
+export const sendStats = async (problemName, lang, timeMs, statusStr, isAccepted, code) => {
     if (!au.currentUser) return; 
     try {
         let tk = await au.currentUser.getIdToken();
@@ -26,10 +26,33 @@ export const sendStats = async (problemName, lang, timeMs, statusStr, isAccepted
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${tk}` 
             },
-            body: JSON.stringify({ problem: problemName, language: lang, time: timeMs, status: statusStr, isAccepted })
+            body: JSON.stringify({ problem: problemName, language: lang, time: timeMs, status: statusStr, isAccepted, code })
         });
     } catch (e) {
         console.error("Failed to send stats:", e);
+    }
+};
+
+// --- NEW: Fetch problem statistics and personal submissions ---
+export const fetchProblemStats = async (problemName) => {
+    let headers = {};
+    if (au.currentUser) {
+        try {
+            let tk = await au.currentUser.getIdToken();
+            headers['Authorization'] = `Bearer ${tk}`;
+        } catch (e) {
+            console.error("Failed to get ID Token for stats request:", e);
+        }
+    }
+    
+    try {
+        let r = await fetch(`http://localhost:3000/problem-stats/${encodeURIComponent(problemName)}`, {
+            headers: headers
+        });
+        return await r.json();
+    } catch (e) {
+        console.error("Failed to fetch problem stats:", e);
+        return null;
     }
 };
 

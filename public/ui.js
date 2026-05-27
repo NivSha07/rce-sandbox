@@ -68,12 +68,47 @@ window.openProfile = async function() {
                 document.getElementById('statAcc').innerText = a;
                 
                 let rate = t === 0 ? 0 : Math.round((a / t) * 100);
-                document.getElementById('statRate').innerText = rate + "%";
+                
+                // Animate SVG circular progress ring
+                let circle = document.getElementById('statCircle');
+                if (circle) {
+                    let circumference = 314.16;
+                    let offset = circumference - (rate / 100) * circumference;
+                    // Reset to empty first to ensure animation triggers on reopening
+                    circle.style.strokeDashoffset = circumference;
+                    setTimeout(() => {
+                        circle.style.strokeDashoffset = offset;
+                    }, 50);
+                }
+
+                // Micro-animation for text percentage counter climbing from 0%
+                let text = document.getElementById('statRate');
+                if (text) {
+                    text.innerText = "0%";
+                    if (rate > 0) {
+                        let current = 0;
+                        let duration = 1000; // 1 second total animation
+                        let stepTime = Math.max(Math.floor(duration / rate), 12);
+                        let timer = setInterval(() => {
+                            current += 1;
+                            text.innerText = current + "%";
+                            if (current >= rate) {
+                                text.innerText = rate + "%";
+                                clearInterval(timer);
+                            }
+                        }, stepTime);
+                    }
+                }
             }
         } catch(e) { console.error("Error loading profile:", e); }
     } else {
         document.getElementById('profName').innerText = "Please log in first";
         document.getElementById('profImg').innerHTML = "🔒 ";
+        
+        // Reset progress bar on anonymous states
+        let circle = document.getElementById('statCircle');
+        if (circle) circle.style.strokeDashoffset = 314.16;
+        document.getElementById('statRate').innerText = "0%";
     }
 };
 
