@@ -219,7 +219,7 @@ window.runCode = async function(isSubmit = false) {
         
         let d = await executeCode(s, ins, l); // <--- USING API.JS HERE
         
-        let h = "<table style='width:100%; text-align:left; border-collapse:collapse;'><tr><th style='border-bottom:1px solid var(--border); padding:5px;'>Test</th><th style='border-bottom:1px solid var(--border); padding:5px;'>Status</th><th style='border-bottom:1px solid var(--border); padding:5px;'>Time</th></tr>";
+        let h = "<table class='test-table'><tr><th>Test</th><th>Status</th><th>Time</th></tr>";
         
         let allPassed = true;
         let visibleFailed = false;
@@ -244,17 +244,17 @@ window.runCode = async function(isSubmit = false) {
 
             if (!isHidden) {
                 if (!res || res.error) {
-                    h += `<tr><td style='padding:5px;'>Case ${j+1}</td><td style='padding:5px;'><span style='color:#ef4444;'>⚠️ Error</span></td><td style='padding:5px;'>-</td></tr>`;
+                    h += `<tr><td>Case ${j+1}</td><td><span style='color:var(--danger); font-weight:600; display:inline-flex; align-items:center; gap:4px;'>⚠️ Error</span></td><td>-</td></tr>`;
                 } else {
-                    let st = pass ? "<span style='color:#22c55e;'>✅ Passed</span>" : "<span style='color:#ef4444;'>❌ Failed</span>";
-                    h += `<tr><td style='padding:5px;'>Case ${j+1}</td><td style='padding:5px;'>${st}</td><td style='padding:5px;'>${res.time}ms</td></tr>`;
+                    let st = pass ? "<span style='color:var(--success); font-weight:600; display:inline-flex; align-items:center; gap:4px;'>✅ Passed</span>" : "<span style='color:var(--danger); font-weight:600; display:inline-flex; align-items:center; gap:4px;'>❌ Failed</span>";
+                    h += `<tr><td>Case ${j+1}</td><td>${st}</td><td>${res.time}ms</td></tr>`;
                 }
             }
         }
         h += "</table>";
         
         if (d.results[0] && d.results[0].error) {
-            h += `<div style="margin-top:15px; color:#ef4444; font-family:monospace; white-space:pre-wrap;">${d.results[0].output}</div>`;
+            h += `<div style="margin-top:15px; color:var(--danger); font-family:var(--font-mono); white-space:pre-wrap;">${d.results[0].output}</div>`;
         }
         o.innerHTML = h;
         
@@ -293,21 +293,21 @@ window.openLibrary = function() {
         let titleMatch = p.desc.match(/<h3>(.*?)<\/h3>/);
         let title = titleMatch ? titleMatch[1] : `Problem ${i + 1}`;
         
-        // Determine difficulty color
+        // Determine difficulty badge class
         let diff = p.difficulty || "Unknown";
-        let diffColor = "#a6accd"; // Default gray
-        if (diff === "Easy") diffColor = "#22c55e"; // Green
-        if (diff === "Medium") diffColor = "#eab308"; // Yellow
-        if (diff === "Hard") diffColor = "#ef4444"; // Red
+        let diffClass = "easy"; 
+        if (diff === "Medium") diffClass = "medium";
+        if (diff === "Hard") diffClass = "hard";
+        if (diff === "External") diffClass = "external";
 
-        // LeetCode-style table row with hover effect
+        // Premium table row matching our new stylesheet
         html += `
-            <tr style="border-bottom:1px solid var(--border); transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
-                <td style="padding:15px 20px; color:var(--text-muted);">—</td>
-                <td style="padding:15px 20px; font-weight:bold; color:var(--text-main);">${title}</td>
-                <td style="padding:15px 20px; color:${diffColor};">${diff}</td>
-                <td style="padding:15px 20px; text-align:right;">
-                    <button onclick="selectProblemFromLib(${i})" style="background:var(--accent); color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">Solve</button>
+            <tr>
+                <td style="color:var(--text-muted);">—</td>
+                <td style="font-weight:700; color:var(--text-main);">${title}</td>
+                <td><span class="diff-badge ${diffClass}">${diff}</span></td>
+                <td style="text-align:right;">
+                    <button onclick="selectProblemFromLib(${i})" style="padding:6px 14px; font-size:0.8rem; border-radius:6px;">Solve</button>
                 </td>
             </tr>
         `;

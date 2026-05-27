@@ -2,7 +2,7 @@
 import { au, db, doc, getDoc } from './firebase.js';
 
 // --- THEME INITIALIZATION ---
-const defaultTheme = { bg: "#1a1a1a", panel: "#282828" };
+const defaultTheme = { bg: "#0a0b10", panel: "#121628" };
 let userTheme = JSON.parse(localStorage.getItem('rce_theme')) || defaultTheme;
 
 document.documentElement.style.setProperty('--bg-color', userTheme.bg);
