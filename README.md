@@ -14,19 +14,19 @@ sequenceDiagram
     actor User as Developer / Competitor
     participant FE as Frontend (Monaco Web IDE)
     participant BE as Express Backend (Port 3000)
-    participant C++ as WinSock2 Daemon (Port 8080)
+    participant CPP as C++ WinSock2 Daemon (Port 8080)
     participant Doc as Sandboxed Docker Container
     participant DB as Firebase Firestore
 
     User->>FE: Write Code & Click "Submit / Run"
     FE->>BE: POST /run (code, inputs, language)
     Note over BE: Generates random UUID folder<br/>Writes code & runner.sh scripts
-    BE->>C++: Connect & send: "language | temp/temp_uuid"
-    Note over C++: Receives TCP request<br/>Resolves absolute host paths
-    C++->>Doc: docker run --rm --memory="256m" --network none ...
+    BE->>CPP: Connect & send: "language | temp/temp_uuid"
+    Note over CPP: Receives TCP request<br/>Resolves absolute host paths
+    CPP->>Doc: docker run --rm --memory="256m" --network none ...
     Note over Doc: Executes code inside isolated environment<br/>Pipes stdout/stderr to temp_uuid_out.txt
-    Doc-->>C++: Exit (or forced timeout)
-    C++-->>BE: Stream execution/compilation output via TCP
+    Doc-->>CPP: Exit (or forced timeout)
+    CPP-->>BE: Stream execution/compilation output via TCP
     Note over BE: Cleans up temp scripts<br/>Parses output & timestamps
     BE-->>FE: HTTP 200 (results array)
     FE->>BE: POST /save-stat (authenticated ID Token)
