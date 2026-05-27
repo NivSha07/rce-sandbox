@@ -14,13 +14,33 @@ window.lg = async () => {
 
 window.lo = () => { signOut(au).then(()=>window.location.reload()); };
 
-onAuthStateChanged(au, (u) => {
+onAuthStateChanged(au, async (u) => {
     let ub = document.getElementById('uBx');
     if(u) {
         ub.innerHTML = `<img src="${u.photoURL}" style="width:30px;height:30px;border-radius:50%;vertical-align:middle;"><span style="font-size:0.9rem;font-weight:bold;color:#e2e8f0;margin:0 10px;">${u.displayName || u.email}</span><button onclick="lo()" style="padding:6px 12px;font-size:0.8rem;background:#ef4444;border:none;border-radius:4px;color:white;cursor:pointer;">Logout</button>`;
+        
+        // Fetch user document from Firestore to verify admin permissions
+        try {
+            let uDoc = await getDoc(doc(db, "users", u.uid));
+            if (uDoc.exists()) {
+                let data = uDoc.data();
+                window.isAdmin = data.isAdmin === true || data.stats?.isAdmin === true;
+            } else {
+                window.isAdmin = false;
+            }
+        } catch(err) {
+            console.warn("[Admin Access Warning]: Could not fetch admin status.", err);
+            window.isAdmin = false;
+        }
     } else {
         if(ub) ub.innerHTML = `<button onclick="lg()" style="padding:8px 15px;font-size:0.9rem;background:#24292e;color:white;border:none;border-radius:4px;cursor:pointer;">Google Login</button>`;
+        window.isAdmin = false;
     }
+    
+    // Toggle visibility of the Add Public Problem button based on admin status
+    let admBtn = document.getElementById('admAddBtn');
+    if (admBtn) admBtn.style.display = window.isAdmin ? "inline-flex" : "none";
+
     // Reload database problems when auth state changes to fetch correct private list
     window.loadDatabaseProblems();
 });
@@ -48,25 +68,28 @@ const defaultPrb = [
 
 window.loadDatabaseProblems = async () => {
     try {
-        // 1. Fetch common/public problems
-        let commonSnap = await getDocs(collection(db, "problems"));
-        
-        // If the database is completely empty, seed it with our default problem!
-        if (commonSnap.empty) {
-            console.log("Seeding initial database...");
-            for (let p of defaultPrb) {
-                await setDoc(doc(db, "problems", p.id), p);
-            }
-            commonSnap = await getDocs(collection(db, "problems")); // Re-fetch
+        // 1. Fetch common/public problems with guest/unauthenticated fallback
+        let commonSnap = null;
+        try {
+            commonSnap = await getDocs(collection(db, "problems"));
+        } catch(err) {
+            console.warn("Firestore common read failed (probably unauthenticated). Using defaults.", err);
         }
-
+        
         prb = [];
         
-        // Add common problems
-        commonSnap.forEach(docSnap => {
-            let pData = docSnap.data();
-            prb.push(pData);
-        });
+        if (commonSnap && !commonSnap.empty) {
+            // Add common problems
+            commonSnap.forEach(docSnap => {
+                let pData = docSnap.data();
+                prb.push(pData);
+            });
+        } else {
+            // Fallback to default pre-seeded problems
+            for (let p of defaultPrb) {
+                prb.push(p);
+            }
+        }
 
         // 2. Fetch private user-specific problems if logged in
         if (au.currentUser) {
@@ -184,6 +207,23 @@ window.loadProblem = function() {
     if (subBtn) {
         if (showProblem && !p.isCF) {
             subBtn.style.display = "block";
+            if (au.currentUser) {
+                subBtn.disabled = false;
+                subBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:16px;height:16px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                    </svg> Submit`;
+                subBtn.style.opacity = "1";
+                subBtn.style.cursor = "pointer";
+            } else {
+                subBtn.disabled = true;
+                subBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:16px;height:16px;opacity:0.6;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                    </svg> Login to Submit`;
+                subBtn.style.opacity = "0.55";
+                subBtn.style.cursor = "not-allowed";
+            }
         } else {
             subBtn.style.display = "none";
         }
@@ -397,6 +437,120 @@ window.selectProblemFromLib = function(index) {
     } else {
         // If already in problem mode, just load the new data
         window.loadProblem();
+    }
+};
+
+// --- ADMIN CREATOR PANEL FUNCTIONS ---
+window.openAdminPanel = function() {
+    // Reset form fields
+    document.getElementById('admId').value = "";
+    document.getElementById('admTitle').value = "";
+    document.getElementById('admDiff').value = "Easy";
+    document.getElementById('admDesc').value = "";
+    
+    // Clear test cases containers
+    document.getElementById('admVisibleTests').innerHTML = "";
+    document.getElementById('admHiddenTests').innerHTML = "";
+    
+    // Add one template test row for each container to start
+    window.addAdmTest('visible');
+    window.addAdmTest('hidden');
+    
+    // Open the Modal
+    document.getElementById('adminMod').style.display = "flex";
+};
+
+window.closeAdminPanel = function() {
+    document.getElementById('adminMod').style.display = "none";
+};
+
+window.addAdmTest = function(type, inputVal = "", outputVal = "") {
+    let container = document.getElementById(type === 'visible' ? 'admVisibleTests' : 'admHiddenTests');
+    let row = document.createElement('div');
+    row.className = 'adm-test-row';
+    row.style.display = 'flex';
+    row.style.gap = '10px';
+    row.style.alignItems = 'center';
+    row.style.marginTop = '6px';
+    
+    row.innerHTML = `
+        <textarea placeholder="Input..." class="t-inp" style="flex:1; height:48px; font-size:0.78rem; padding:6px 10px; font-family:var(--font-mono); border-radius:6px; border:1px solid var(--panel-border); background:rgba(8,10,18,0.4); color:var(--text-main); margin-top:0;"></textarea>
+        <textarea placeholder="Expected Output..." class="t-out" style="flex:1; height:48px; font-size:0.78rem; padding:6px 10px; font-family:var(--font-mono); border-radius:6px; border:1px solid var(--panel-border); background:rgba(8,10,18,0.4); color:var(--text-main); margin-top:0;"></textarea>
+        <button onclick="this.parentElement.remove()" class="danger" style="padding:6px 10px; font-size:0.75rem; border-radius:6px; height:34px; line-height:1; display:inline-flex; align-items:center; justify-content:center;">✖</button>
+    `;
+    container.appendChild(row);
+};
+
+window.saveAdminProblem = async function() {
+    let id = document.getElementById('admId').value.trim();
+    let title = document.getElementById('admTitle').value.trim();
+    let difficulty = document.getElementById('admDiff').value;
+    let descBody = document.getElementById('admDesc').value.trim();
+    
+    if (!id || !title || !descBody) {
+        alert("Validation Failed: Please fill in unique ID, Title, and Description!");
+        return;
+    }
+    
+    // Format a unique safe ID
+    let safeId = id.replace(/[^a-zA-Z0-9]/g, "_");
+    
+    // Format description text to preserve newlines as paragraphs/breaks
+    let descHTML = `<h3>${title}</h3><p>${descBody.split("\n").join("<br>")}</p>`;
+    
+    // Extract visible test cases
+    let visibleTests = [];
+    let visibleRows = document.getElementById('admVisibleTests').querySelectorAll('.adm-test-row');
+    visibleRows.forEach(row => {
+        let inp = row.querySelector('.t-inp').value.trim();
+        let out = row.querySelector('.t-out').value.trim();
+        if (inp || out) {
+            visibleTests.push({ i: inp, e: out });
+        }
+    });
+    
+    // Extract hidden test cases
+    let hiddenTests = [];
+    let hiddenRows = document.getElementById('admHiddenTests').querySelectorAll('.adm-test-row');
+    hiddenRows.forEach(row => {
+        let inp = row.querySelector('.t-inp').value.trim();
+        let out = row.querySelector('.t-out').value.trim();
+        if (inp || out) {
+            hiddenTests.push({ i: inp, e: out });
+        }
+    });
+    
+    if (visibleTests.length === 0) {
+        alert("Validation Failed: Please add at least one visible test case!");
+        return;
+    }
+    
+    // Construct final problem payload with automatic templates
+    let newProb = {
+        id: safeId,
+        difficulty: difficulty,
+        desc: descHTML,
+        code: {
+            cpp: defaultCode.cpp,
+            python: defaultCode.python,
+            java: defaultCode.java
+        },
+        tests: visibleTests,
+        hiddenTests: hiddenTests
+    };
+    
+    try {
+        // Save the new problem directly to the public 'problems' collection
+        await setDoc(doc(db, "problems", safeId), newProb);
+        
+        alert("Success! Problem added to public database successfully.");
+        closeAdminPanel();
+        
+        // Reload common problems and refresh UI immediately
+        window.loadDatabaseProblems();
+    } catch(err) {
+        console.error("[Admin Save Error]:", err);
+        alert("Failed to write to public database: " + err.message);
     }
 };
 
