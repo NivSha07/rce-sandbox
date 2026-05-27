@@ -16,7 +16,7 @@ const db = admin.firestore();
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.static(__dirname + '/public'));
 
 // --- COMPETITIVE COMPANION INTERCEPTOR ---
 let pendingProblem = null;
@@ -173,7 +173,7 @@ app.post('/save-stat', async (req, res) => {
 // -------------------------------------
 
 const { spawn } = require('child_process');
-const judgeDaemon = spawn('judge.exe');
+const judgeDaemon = spawn('./judge/judge.exe');
 
 judgeDaemon.stdout.on('data', (data) => {
     console.log(`${data}`.trim());
