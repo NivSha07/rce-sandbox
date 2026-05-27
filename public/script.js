@@ -21,6 +21,8 @@ onAuthStateChanged(au, (u) => {
     } else {
         if(ub) ub.innerHTML = `<button onclick="lg()" style="padding:8px 15px;font-size:0.9rem;background:#24292e;color:white;border:none;border-radius:4px;cursor:pointer;">Google Login</button>`;
     }
+    // Reload database problems when auth state changes to fetch correct private list
+    window.loadDatabaseProblems();
 });
 
 let showProblem = false;
@@ -46,31 +48,55 @@ const defaultPrb = [
 
 window.loadDatabaseProblems = async () => {
     try {
-        let snap = await getDocs(collection(db, "problems"));
+        // 1. Fetch common/public problems
+        let commonSnap = await getDocs(collection(db, "problems"));
         
         // If the database is completely empty, seed it with our default problem!
-        if (snap.empty) {
+        if (commonSnap.empty) {
             console.log("Seeding initial database...");
             for (let p of defaultPrb) {
                 await setDoc(doc(db, "problems", p.id), p);
             }
-            snap = await getDocs(collection(db, "problems")); // Re-fetch
+            commonSnap = await getDocs(collection(db, "problems")); // Re-fetch
         }
 
         prb = [];
+        
+        // Add common problems
+        commonSnap.forEach(docSnap => {
+            let pData = docSnap.data();
+            prb.push(pData);
+        });
+
+        // 2. Fetch private user-specific problems if logged in
+        if (au.currentUser) {
+            try {
+                let privateSnap = await getDocs(collection(db, "users", au.currentUser.uid, "problems"));
+                privateSnap.forEach(docSnap => {
+                    let pData = docSnap.data();
+                    prb.push(pData);
+                });
+            } catch(err) {
+                console.error("Error loading user private problems:", err);
+            }
+        } else {
+            // Load from localStorage private problems if not logged in
+            let privateProbs = JSON.parse(localStorage.getItem('rce_private_problems')) || [];
+            for (let p of privateProbs) {
+                prb.push(p);
+            }
+        }
+
         let sel = document.getElementById('pSel');
         sel.innerHTML = ""; // Clear existing dropdown
 
-        // CHANGED: 'document' to 'docSnap' to protect the global HTML object
-        snap.forEach(docSnap => {
-            let pData = docSnap.data();
-            prb.push(pData);
-            
-            // Build the dropdown dynamically
+        // 3. Build dropdown dynamically
+        prb.forEach((pData, idx) => {
             let opt = document.createElement('option');
-            opt.value = prb.length - 1;
+            opt.value = idx;
             let titleMatch = pData.desc.match(/<h3>(.*?)<\/h3>/);
-            opt.text = titleMatch ? titleMatch[1] : `Problem ${prb.length}`;
+            let displayTitle = titleMatch ? titleMatch[1] : `Problem ${idx + 1}`;
+            opt.text = (pData.isCF ? "⚡ " : "") + displayTitle;
             sel.appendChild(opt);
         });
 
@@ -360,8 +386,20 @@ setInterval(async () => {
                     isCF: true
                 };
 
-                // 1. Save it permanently to Firestore
-                await setDoc(doc(db, "problems", safeId), newProb);
+                // 1. Save it to user's private collection if logged in, or localStorage if logged out
+                if (au.currentUser) {
+                    try {
+                        await setDoc(doc(db, "users", au.currentUser.uid, "problems", safeId), newProb);
+                        console.log(`Saved ${formattedName} to user's private database.`);
+                    } catch(err) {
+                        console.error("Failed to save private problem to Firestore:", err);
+                    }
+                } else {
+                    let privateProbs = JSON.parse(localStorage.getItem('rce_private_problems')) || [];
+                    privateProbs.push(newProb);
+                    localStorage.setItem('rce_private_problems', JSON.stringify(privateProbs));
+                    console.log(`Saved ${formattedName} to local storage (unauthenticated fallback).`);
+                }
                 
                 // 2. Add it to our local array instantly
                 prb.push(newProb);
