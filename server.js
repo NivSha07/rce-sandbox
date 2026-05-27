@@ -2,6 +2,12 @@ const express = require('express');
 const fs = require('fs');
 const net = require('net');
 const cors = require('cors');
+const crypto = require('crypto');
+
+// Ensure local temporary sandbox directory exists
+if (!fs.existsSync(`${__dirname}/temp`)) {
+    fs.mkdirSync(`${__dirname}/temp`);
+}
 
 // --- FIREBASE ADMIN SETUP ---
 const admin = require('firebase-admin');
@@ -43,22 +49,40 @@ app.get('/poll-problem', (req, res) => {
 });
 // -----------------------------------------
 
-const cln = (b) => {
+const cln = (b, language, inputsCount) => {
     try {
-        let jd = `${__dirname}/${b}`;
-        if (fs.existsSync(jd)) fs.rmSync(jd, { recursive: true, force: true });
-        let files = fs.readdirSync(__dirname);
-        files.forEach(f => {
-            if (f.startsWith(b)) {
-                try { fs.unlinkSync(`${__dirname}/${f}`); } catch(e) {}
+        let fullPath = `${__dirname}/${b}`;
+        
+        // Delete shell runner script
+        fs.rmSync(`${fullPath}.sh`, { force: true });
+        
+        // Delete specific source and output executable files
+        if (language === 'cpp') {
+            fs.rmSync(`${fullPath}.cpp`, { force: true });
+            fs.rmSync(`${fullPath}.out`, { force: true });
+        } else if (language === 'python') {
+            fs.rmSync(`${fullPath}.py`, { force: true });
+        }
+        
+        // Delete targeted case input files
+        if (inputsCount) {
+            for (let i = 0; i < inputsCount; i++) {
+                fs.rmSync(`${fullPath}_in_${i}.txt`, { force: true });
             }
-        });
-    } catch(e) {}
+        }
+        
+        // Delete the subdirectory (e.g. for Java workspace directories)
+        if (fs.existsSync(fullPath)) {
+            fs.rmSync(fullPath, { recursive: true, force: true });
+        }
+    } catch(e) {
+        console.error("[Cleanup Error]:", e);
+    }
 };
 
 app.post('/run', (req, res) => {
     let { code, inputs, language } = req.body;
-    let b = `temp_${Date.now()}`;
+    let b = `temp/temp_${crypto.randomUUID()}`;
     let sc = "";
 
     if (language === 'cpp') sc += `g++ ${b}.cpp -o ${b}.out\n`;
@@ -97,7 +121,7 @@ app.post('/run', (req, res) => {
 
     cl.on('data', (d) => {
         let r = d.toString();
-        cln(b); 
+        cln(b, language, inputs.length); 
 
         let resArr = [];
         for (let i = 0; i < inputs.length; i++) {
@@ -127,11 +151,11 @@ app.post('/run', (req, res) => {
     });
 
     cl.on('error', (err) => {
-        cln(b); 
+        cln(b, language, inputs.length); 
         res.status(500).send({ error: "Judge Daemon Offline. Start judge.exe." });
     });
 
-    setTimeout(() => cln(b), 10000); 
+    setTimeout(() => cln(b, language, inputs.length), 10000); 
 });
 
 // --- NEW: SECURE STAT SAVING ROUTE ---
