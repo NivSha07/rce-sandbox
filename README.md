@@ -171,13 +171,14 @@ The server will successfully boot and bind to:
 
 ---
 
-## 💼 Portfolio & Resume Showcase
+## 💼 Summary
 
-This project was designed and built as a technical showcase for my software engineering resume/portfolio. It demonstrates strong competencies across:
+This project circles around the following:
 *   **Low-Level Systems Programming**: Socket networking using WinSock2 API, binary compilation, and child process orchestration.
 *   **Virtualization & Security**: Sandbox containment using Docker engines, PID limits, network blocking, and memory restrictions.
 *   **Real-Time Backend Architecture**: Node.js, Express, multi-port listening, and high-precision Unix telemetry.
 *   **Interactive Web Interfaces**: Monaco Editor, dynamic DOM structures, glassmorphic design, and adaptive dark mode engines.
 *   **Cloud Operations**: Firebase token verification, Google OAuth authentication, and Firestore data indexing.
 
-Feel free to explore the codebase, deploy it locally, or run experiments with execution boundaries!
+Feel free to explore the codebase, deploy it locally etc
+
