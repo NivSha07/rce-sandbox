@@ -1,12 +1,14 @@
-# 🚀 Secure RCE Sandbox & Competitive Programming Judge
+# 🚀 Production-Grade Secure RCE Sandbox & Competitive Programming Judge
 
-A premium, production-grade **Remote Code Execution (RCE) Sandbox & Competitive Programming Judge** that allows developers and competitive programmers to compile, execute, and validate code safely. The project incorporates a lightweight C++ Winsock2 execution daemon, containerized Docker isolation, modular Monaco Editor web IDE, and seamless integration with the **Competitive Companion** browser extension.
+An advanced, production-grade **Remote Code Execution (RCE) Sandbox & Competitive Programming Judge** designed to compile, execute, and validate user-submitted code under extreme security boundaries. The system features a native high-performance **C++ WinSock2 execution daemon**, containerized **Docker isolation**, an interactive **Monaco Editor IDE web portal**, and seamless automation integrated with the popular **Competitive Companion** browser extension.
+
+Designed as a key piece of my software engineering portfolio, this project showcases full-stack expertise spanning low-level Windows systems programming, virtualization security, network protocols, modern frontend design, and scalable cloud architectures.
 
 ---
 
 ## 📸 Architecture & Execution Flow
 
-Below is the execution flow detailing how untrusted user code travels from the Monaco Editor frontend, through the Node.js Express server, gets isolated and monitored inside the native C++ TCP daemon, and finally runs within restricted Docker sandboxes.
+The sequence diagram below details the end-to-end execution lifecycle. It tracks how untrusted code travels from the interactive Monaco Editor, through the Node.js Express server, down to the native C++ loopback TCP daemon, executes in an isolated Docker container, and records analytics back to Firebase Firestore.
 
 ```mermaid
 sequenceDiagram
@@ -37,28 +39,48 @@ sequenceDiagram
 
 ---
 
-## ✨ Core Features
+## 🛠️ Key Technical Highlights & Architecture
 
-### 🛡️ 1. Ultra-Secure RCE Sandbox
-To safely compile and execute untrusted user-submitted code in **C++**, **Python**, and **Java**, the system utilizes customized Docker run-time sandboxes enforced with the following system boundaries:
-*   **CPU Allocation Capping (`--cpus="1"`)**: Restricts each executed container to a maximum of one thread/core, shielding the host machine from CPU exhaustion loops.
-*   **Memory Throttling (`--memory="256m"`)**: Strictly throttles heap allocations to 256MB to prevent out-of-memory (OOM) host crashes and memory leaks.
-*   **Total Network Isolation (`--network none`)**: Disables all inbound and outbound networks inside the execution container, blocking reverse shells, network snooping, or data exfiltration.
-*   **Process Limit Protection (`--pids-limit 64`)**: Defends the host system against malicious recursive fork-bombs by capping the total number of sub-processes to 64.
-*   **Garbage-Collect Cleaners**: Automatically cleans up temporary files (`.cpp`, `.py`, `.java`, `.sh`, `.txt`, `.out`) immediately post-execution or after a fallback 10-second timeout.
+This project is built around three core architectural pillars:
 
-### 🌐 2. Interactive Monaco Web IDE
-*   **Interactive Editor Controls**: Fully interactive Monaco Editor workspace featuring syntax highlighting, live theme selectors (Dracula, VS-Dark, Light, HC-Black), and dynamic font resizing.
-*   **Flexible Themes System**: Custom-engineered styling using modern vanilla CSS variables and local storage, letting users personalize the background and panel colors using color pickers.
-*   **Problem Solver & Normal Modes**: Switch between **Normal Mode** (write raw scripts and execute them with custom inputs) and **Problem Viewer Mode** (load competitive problems, validate against test cases, and submit to the system).
+### 1. The Native C++ WinSock2 Daemon (`judge/judge.cpp`)
+*   **High Performance socket server**: Built natively in C++ using the WinSock2 library (`ws2_32.lib`) to establish a zero-dependency loopback TCP socket connection on port `8080`.
+*   **Decoupled Orchestration**: Avoids spawning expensive process wrappers directly in Node.js. Instead, the server forwards execution payloads (`language|temp_dir`) to the daemon, which acts as a lightweight hypervisor.
+*   **Path Resolution & Management**: Handles Windows host-path mappings dynamically (mapping local project contexts using `%cd%`), mounts corresponding subdirectories, and executes cleanups immediately upon socket termination.
 
-### ⚡ 3. Competitive Companion Interceptor
-*   **Automated Parsing**: Built-in Express handler running on Port `10043` that intercepts schema payloads sent by the **Competitive Companion** browser extension.
-*   **Instant Sync**: As soon as you click the green "plus" button on Codeforces, AtCoder, or CSES, the backend catches the test cases, problem constraints, and name, auto-imports it into Firebase Firestore, and mounts it into the Monaco workspace instantly!
+### 2. The Node.js Express Orchestrator (`server.js`)
+*   **Cryptographic Isolation**: Generates a randomized workspace directory under `temp/temp_` using cryptographic UUIDs for every run request, guaranteeing that concurrent execution payloads never collide.
+*   **Double-Layer Timeout Telemetry**: Measures precise execution intervals by executing high-precision milliseconds arithmetic within the shell container via Bash telemetry (`date +%s%3N`).
+*   **Fail-Safe Cleanups**: Uses localized cleanup routines to purge workspace trails (`.cpp`, `.py`, `.sh`, input/output files) instantly post-run or through an absolute 10-second server fail-safe timer.
+*   **Identity & State Management**: Integrates the **Firebase Admin SDK** to verify JWT tokens emitted by Google OAuth and issues transactions to record user profiles, submission history, and problem stats.
 
-### 📊 4. Authenticated Profiles & Firestore Stats
-*   **Secure Auth Integration**: Employs Firebase Auth Google Sign-in to authorize competitive programmers.
-*   **Secure Statistics Backend**: When submitting to a problem, the server validates client identity via Google ID token verification and records metrics securely in Firestore, updating user statistics (`totalSubmissions`, `totalAccepted`, and `Success Rate`).
+### 3. Interactive Glassmorphic Frontend Portal (`public/`)
+*   **Monaco Editor Integration**: Integrates Microsoft's Monaco Editor featuring rich telemetry, dynamic font scaling, syntax highlighting, and responsive tab configurations.
+*   **Visual Performance Tracker**: Shows a breakdown of compile errors, execution details, test case outputs, and real-time execution speeds in milliseconds.
+*   **Glassmorphic Design System**: Uses a highly polished CSS design with interactive panel resize bars, variable layout modes (Normal execution vs. Competitive Problem Solver), and live custom theme overrides (Dracula, VS-Dark, Light, HC-Black).
+
+---
+
+## 🔒 Deep-Dive Security Sandboxing
+
+Executing untrusted, user-submitted code is a high-risk operation susceptible to remote code execution (RCE) vulnerabilities. To defend the host environment, the C++ Daemon wraps all container runs with custom-enforced virtualization boundaries using **Docker engine restrictions**:
+
+| Security Flag | Enforced Boundary | Vulnerability Mitigation |
+| :--- | :--- | :--- |
+| `--cpus="1"` | Pin container limit to a maximum of 1 CPU core | Mitigates infinite CPU loops or resource-exhaustion denial of service (DoS) attacks from dragging down the host machine. |
+| `--memory="256m"` | Throttles RAM heap allocations to a maximum of 256MB | Prevents Out-Of-Memory (OOM) host-level crashes and memory exfiltration. |
+| `--network none` | Completely severs inbound & outbound network access | Completely blocks reverse shells, port scanning, data exfiltration, or connections to external command-and-control servers. |
+| `--pids-limit 64` | Restricts maximum concurrent sub-processes to 64 | Defends the host system against recursive process spawning exploits (Fork-Bombs). |
+| `timeout 5s` | Shell-level command execution cap inside the container | Guarantees that hanging or stalled code will be killed immediately, freeing resources. |
+
+---
+
+## ⚡ Competitive Companion Integration
+
+To streamline developer and competitor workflows, this project incorporates automatic problem seeding:
+1.  **Custom Listener Protocol**: A dedicated Node.js Express microservice runs concurrently on Port `10043`.
+2.  **Schema Interception**: When a competitive programmer clicks the green "plus" button on platforms like Codeforces, AtCoder, or CSES via the **Competitive Companion** browser extension, a POST payload containing test cases, execution time constraints, and metadata is caught by the listener.
+3.  **Instant Workspace Mounting**: The server buffers the problem details locally, which are instantly pulled into the Monaco Editor workspace, populating test inputs and visual target expectations in real-time.
 
 ---
 
@@ -66,57 +88,55 @@ To safely compile and execute untrusted user-submitted code in **C++**, **Python
 
 ```bash
 rce-sandbox/
-├── judge/                     # Native Judge Daemon Component
+├── judge/                     # Native C++ Execution Daemon
 │   ├── judge.cpp              # WinSock2 C++ Daemon source code
 │   └── judge.exe              # Pre-compiled high-performance judge binary
-├── public/                    # Frontend Web Assets
-│   ├── assets/                # Visual styles, SVGs, and images
-│   ├── index.html             # Web-based Monaco IDE Dashboard
-│   ├── style.css              # Glassmorphic Dark UI stylesheets
-│   ├── api.js                 # Frontend AJAX HTTP helpers
-│   ├── editor.js              # Monaco Editor hooks & configuration
-│   ├── firebase.js            # Client-side Firebase configuration
-│   ├── ui.js                  # Theme engine, layout managers & modals
+├── public/                    # Frontend Glassmorphic UI Assets
+│   ├── index.html             # Main IDE & Competitive Dashboard
+│   ├── style.css              # Styling, Theme variables & Responsive structure
+│   ├── api.js                 # AJAX network wrappers to back-end endpoints
+│   ├── editor.js              # Monaco Editor configurations & hooks
+│   ├── firebase.js            # Client-side Google Auth & Firestore client setup
+│   ├── ui.js                  # DOM manager, modals, themes, panel resize controllers
 │   └── script.js              # Application entry-point and state machine
-├── temp/                      # Dynamic sandbox directory (Auto-cleaned)
-├── server.js                  # Node.js backend server & daemon orchestrator
-├── serviceAccountKey.json     # SECURE Firebase Admin cert (Not committed in prod)
-├── package.json               # Package declarations and project metadata
+├── temp/                      # Dynamic sandbox directory (Automated cleanups)
+├── server.js                  # Node.js backend orchestrator & daemon lifecycle manager
+├── serviceAccountKey.json     # Firebase Admin SDK Credentials (Not committed in production)
+├── package.json               # Project manifest, scripts & dependencies
 └── README.md                  # Detailed Documentation
 ```
 
 ---
 
-## 🛠️ Requirements & Setup
+## 🛠️ Quick Start & Setup Guide
 
-Before setting up the sandbox, make sure you have the following prerequisites installed on your system:
+Ensure the following prerequisites are installed before booting up the sandbox environment:
+1.  **Docker Desktop** (Running and active on the host machine).
+2.  **Node.js** (v18.0.0 or higher).
+3.  **Windows OS** (Due to the native C++ daemon utilizing `winsock2.h`). *Note: To host this on Linux/macOS, modify the socket layers in `judge.cpp` to use BSD Unix sockets.*
 
-1.  **Docker Desktop** (Active and running on your host OS).
-2.  **Node.js** (v18.0.0 or higher recommended).
-3.  **Windows OS** (The judge compiler uses a WinSock2 TCP daemon, compiled into `judge.exe`). If deploying on Linux, rewrite `judge.cpp` using BSD Sockets.
-
-### Step 1: Clone the Repository & Install Dependencies
+### Step 1: Clone and Install
+Clone the repository and install the Express dependencies:
 ```bash
 git clone https://github.com/NivSha07/rce-sandbox.git
 cd rce-sandbox
 npm install
 ```
 
-### Step 2: Establish the Sandbox Containers
-Ensure Docker Desktop is active. The backend daemon relies on standard public Docker images for compiling and running the code. Pull the following images in advance:
+### Step 2: Pre-Pull Core Docker Images
+Pull the compilers and interpreters ahead of time so the first submission executes instantly:
 ```bash
 docker pull gcc:latest
 docker pull python:latest
 docker pull eclipse-temurin:latest
 ```
 
-### Step 3: Firebase Integration Config
-The statistics logging and problem catalog require a Firebase project.
+### Step 3: Configure Firebase Integration
+Database caching and user submission statistics are driven by Firebase Firestore.
 1. Create a Firebase project at the [Firebase Console](https://console.firebase.google.com/).
-2. Enable **Google Authentication** in your Firebase Authentication settings.
-3. Create a **Cloud Firestore** Database.
-4. Set up Web Client Configurations in `public/firebase.js`:
-   Replace the `fc` config object with your own Firebase Project details:
+2. Head to your Firebase Auth settings and enable **Google Authentication**.
+3. Initialize a **Cloud Firestore** Database.
+4. Set up Web Client Configurations in `public/firebase.js`. Replace the configuration block with your project settings:
    ```javascript
    const fc = {
        apiKey: "YOUR_API_KEY",
@@ -127,57 +147,37 @@ The statistics logging and problem catalog require a Firebase project.
        appId: "YOUR_APP_ID"
    };
    ```
-5. Set up Admin SDK Credentials:
-   * Go to **Project Settings** > **Service Accounts** inside your Firebase console.
-   * Generate a new private key and save it as `serviceAccountKey.json` directly in the project root directory.
+5. Set up Admin credentials to authorize statistics tracking:
+   * Navigate to **Project Settings** > **Service Accounts** inside the Firebase console.
+   * Generate a new Private Key and save the downloaded file as `serviceAccountKey.json` directly in the root of the project directory.
 
-### Step 4: Run the Application
-Start the Node.js Express server. Running the server automatically spawns the C++ TCP Judge Daemon (`judge.exe`) as a child process:
+### Step 4: Run the Sandboxed Judge
+Start the primary server. Spawning the Node.js server automatically runs the C++ Judge Daemon (`judge.exe`) in the background:
 ```bash
 node server.js
 ```
-The server will boot up and bind to two primary entry-points:
+The server will successfully boot and bind to:
 *   **Port 3000**: Main Web Application (`http://localhost:3000`)
-*   **Port 10043**: Competitive Companion Listener
+*   **Port 10043**: Competitive Companion Webhook Listener
 
-> [!NOTE]
-> If the backend daemon requires recompilation, you can easily compile it using GCC for Windows:
+> [!TIP]
+> If you modify the native backend daemon, compile it from source using GCC for Windows:
 > `g++ judge/judge.cpp -o judge/judge.exe -lws2_32`
 
-### Step 5: Configure Competitive Companion Browser Extension
-1. Install the **Competitive Companion** extension on Chrome, Firefox, or Brave.
-2. Open the extension's settings page.
-3. Under the "Ports" section, add `10043` to the list of ports.
-4. Navigate to any competitive programming website (e.g. Codeforces), open a problem, and click the green extension button to instantly import it into your Sandbox IDE!
+### Step 5: Install Competitive Companion Extension
+1. Install **Competitive Companion** on your browser (Chrome/Firefox/Brave).
+2. Go to the extension options and add `10043` to the list of Ports.
+3. Open any problem on supported competitive programming platforms (e.g. Codeforces), click the green extension icon, and watch the problem sync to your Monaco workspace!
 
 ---
 
-## 🔒 Security Throttles & Daemon Protocol
+## 💼 Portfolio & Resume Showcase
 
-The communication between `server.js` and `judge.exe` takes place over a dedicated localhost TCP connection on port `8080`.
+This project was designed and built as a technical showcase for my software engineering resume/portfolio. It demonstrates strong competencies across:
+*   **Low-Level Systems Programming**: Socket networking using WinSock2 API, binary compilation, and child process orchestration.
+*   **Virtualization & Security**: Sandbox containment using Docker engines, PID limits, network blocking, and memory restrictions.
+*   **Real-Time Backend Architecture**: Node.js, Express, multi-port listening, and high-precision Unix telemetry.
+*   **Interactive Web Interfaces**: Monaco Editor, dynamic DOM structures, glassmorphic design, and adaptive dark mode engines.
+*   **Cloud Operations**: Firebase token verification, Google OAuth authentication, and Firestore data indexing.
 
-### Daemon Protocol Structure:
-1. The Express server initiates a TCP socket connection to `127.0.0.1:8080`.
-2. It sends the payload: `[language]|[temporary_directory_prefix]`.
-   * *Example payload*: `cpp|temp/temp_e901a938-16e6-424a-85b9-1a5c4df1cbfa`
-3. The C++ Daemon resolves the command execution and constructs a Docker execution shell command dynamically.
-4. Inside Docker, a resource-capping flag acts as the execution wrapper:
-   ```bash
-   docker run --rm --memory="256m" --cpus="1" --network none --pids-limit 64 -v "%cd%":/usr/src/app -w /usr/src/app gcc:latest bash temp_uuid.sh
-   ```
-5. The container output is written directly to a temporary text file, read by `judge.exe`, and streamed back as a raw TCP string response to `server.js`.
-6. Node.js cleans up all host filesystem logs, parses case boundaries (`---CASE0---`), compares execution timelines, and outputs final judge metrics.
-
----
-
-## 🏆 Competitive Problem Catalog & seeding
-
-On first boot, the system automatically verifies the Firestore `problems` collection. If it is empty, it seeds the collection with a standard starting problem:
-*   **A. Array Prefix Sums**: Output an array of size `n` where the `i-th` element is the sum of integers from 1 to `i`.
-*   Includes built-in test case metrics and hidden evaluation test cases to demonstrate runtime verification correctness.
-
----
-
-## 🤝 Contribution & License
-Contributions to reinforce sandboxing boundaries, support addition of runtime compilers (e.g. Rust, Go), or integrate UI enhancements are welcome.
-This project is licensed under the **ISC License**. Feel free to fork, experiment, and integrate into your competitive environments!
+Feel free to explore the codebase, deploy it locally, or run experiments with execution boundaries!
