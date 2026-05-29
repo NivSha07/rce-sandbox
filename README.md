@@ -6,6 +6,39 @@ Designed as a key piece of my software engineering portfolio, this project showc
 
 ---
 
+## 🛠️ Tech Stack
+
+The architecture is divided into decoupled, specialized components using a robust and modern stack:
+
+### 🎨 Frontend & Web IDE
+![HTML5](https://img.shields.io/badge/html5-%23E34F26.svg?style=for-the-badge&logo=html5&logoColor=white)
+![CSS3](https://img.shields.io/badge/css3-%231572B6.svg?style=for-the-badge&logo=css3&logoColor=white)
+![JavaScript](https://img.shields.io/badge/javascript-%23F7DF1E.svg?style=for-the-badge&logo=javascript&logoColor=black)
+![Monaco Editor](https://img.shields.io/badge/Monaco%20Editor-007ACC?style=for-the-badge&logo=visual-studio-code&logoColor=white)
+![Firebase](https://img.shields.io/badge/firebase-%23039BE5.svg?style=for-the-badge&logo=firebase)
+
+*   **Monaco Editor API**: Powers the in-browser interactive IDE with rich syntax styling, custom keybindings, and dynamic font scaling.
+*   **Glassmorphic Vanilla CSS3**: Dynamic theme overrides (Dracula, VS-Dark, Light, HC-Black), responsive CSS grid layouts, and custom panel resizing logic.
+*   **Firebase Authentication & Firestore**: Standard Google OAuth 2.0 sign-in and real-time database transactions for storing submission history and user statistics.
+
+### ⚙️ Backend & Orchestration
+![NodeJS](https://img.shields.io/badge/node.js-6DA55F?style=for-the-badge&logo=node.js&logoColor=white)
+![Express.js](https://img.shields.io/badge/express.js-%23404d59.svg?style=for-the-badge&logo=express&logoColor=%2361DAFB)
+![Firebase Admin SDK](https://img.shields.io/badge/Firebase%20Admin-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
+
+*   **Node.js & Express.js**: Drives the primary HTTP orchestration layers, parses Competitive Companion extension hooks, and manages cryptographically isolated UUID workspaces.
+*   **Firebase Admin SDK**: Securely authenticates API payloads and manages transactions directly with Cloud Firestore.
+
+### 🔒 Low-Level Execution & Container Isolation
+![C++](https://img.shields.io/badge/c++-%2300599C.svg?style=for-the-badge&logo=c%2B%2B&logoColor=white)
+![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
+![Shell Script](https://img.shields.io/badge/shell_script-%23121011.svg?style=for-the-badge&logo=gnu-bash&logoColor=white)
+
+*   **C++ & WinSock2**: Native TCP loopback socket server operating on Port `8080` to act as an execution hypervisor with zero external Node runtime dependencies.
+*   **Docker Container Engine**: Enforces strict sandbox containment limits (memory limits, single CPU cores, complete network disabling, and pid limits) inside isolated runtime images (`gcc`, `python`, `eclipse-temurin`).
+
+---
+
 ## 📸 Architecture & Execution Flow
 
 The sequence diagram below details the end-to-end execution lifecycle. It tracks how untrusted code travels from the interactive Monaco Editor, through the Node.js Express server, down to the native C++ loopback TCP daemon, executes in an isolated Docker container, and records analytics back to Firebase Firestore.
