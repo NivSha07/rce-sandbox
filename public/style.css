@@ -733,3 +733,95 @@ details[open] summary::before {
     box-shadow: 0 4px 12px -2px rgba(99, 102, 241, 0.35);
 }
 
+/* --- LEADERBOARD MODAL STYLING --- */
+#leaderboardMod table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+#leaderboardMod th {
+    padding: 12px 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-dark);
+    border-bottom: 2px solid var(--panel-border);
+}
+
+#leaderboardMod td {
+    padding: 14px 8px;
+    font-size: 0.88rem;
+    color: var(--text-main);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    vertical-align: middle;
+}
+
+#leaderboardMod tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+#leaderboardMod tbody tr:hover {
+    background: rgba(255, 255, 255, 0.015);
+}
+
+/* User rank highlight styling for current user */
+#leaderboardMod tr.curr-user-row {
+    background: rgba(99, 102, 241, 0.05) !important;
+    border-left: 3px solid var(--accent);
+}
+
+#leaderboardMod tr.curr-user-row td {
+    border-bottom-color: rgba(99, 102, 241, 0.1);
+}
+
+/* Rank Badge styling */
+.rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    font-weight: 800;
+    font-size: 0.8rem;
+    font-family: var(--font-heading);
+}
+
+.rank-badge.rank-1 {
+    background: linear-gradient(135deg, #ffd700, #f59e0b);
+    color: #0c0a09;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.35);
+}
+
+.rank-badge.rank-2 {
+    background: linear-gradient(135deg, #f1f5f9, #cbd5e1);
+    color: #0f172a;
+    box-shadow: 0 0 10px rgba(203, 213, 225, 0.3);
+}
+
+.rank-badge.rank-3 {
+    background: linear-gradient(135deg, #b45309, #78350f);
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(180, 83, 9, 0.3);
+}
+
+.rank-badge.rank-other {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Custom Problem Analytics dropdown specific styles */
+#probStatsCard summary::before {
+    display: none !important;
+}
+
+details[open]#probStatsCard .chevron-icon {
+    transform: rotate(180deg);
+}
+

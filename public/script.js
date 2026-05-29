@@ -1,5 +1,5 @@
 import { au, db, pr, signInWithPopup, onAuthStateChanged, signOut, doc, getDoc, getDocs, setDoc, collection } from './firebase.js';
-import { executeCode, sendStats, pollCompanion, fetchProblemStats } from './api.js';
+import { executeCode, sendStats, pollCompanion, fetchProblemStats, fetchLeaderboard } from './api.js';
 import './ui.js';
 import { defaultCode, userBoilerplates } from './editor.js';
 
@@ -19,17 +19,42 @@ onAuthStateChanged(au, async (u) => {
     if(u) {
         ub.innerHTML = `<img src="${u.photoURL}" style="width:30px;height:30px;border-radius:50%;vertical-align:middle;"><span style="font-size:0.9rem;font-weight:bold;color:#e2e8f0;margin:0 10px;">${u.displayName || u.email}</span><button onclick="lo()" style="padding:6px 12px;font-size:0.8rem;background:#ef4444;border:none;border-radius:4px;color:white;cursor:pointer;">Logout</button>`;
         
-        // Fetch user document from Firestore to verify admin permissions
+        // Fetch user document from Firestore to verify admin permissions and sync profile
         try {
-            let uDoc = await getDoc(doc(db, "users", u.uid));
+            let userRef = doc(db, "users", u.uid);
+            let uDoc = await getDoc(userRef);
+            
+            let displayNameVal = u.displayName || u.email.split('@')[0];
+            let photoURLVal = u.photoURL || '';
+            
             if (uDoc.exists()) {
                 let data = uDoc.data();
                 window.isAdmin = data.isAdmin === true || data.stats?.isAdmin === true;
+                
+                // Merge-update displayName and photoURL in Firestore
+                await setDoc(userRef, {
+                    displayName: displayNameVal,
+                    photoURL: photoURLVal,
+                    email: u.email
+                }, { merge: true });
             } else {
                 window.isAdmin = false;
+                
+                // Initialize default profile and stats
+                await setDoc(userRef, {
+                    displayName: displayNameVal,
+                    photoURL: photoURLVal,
+                    email: u.email,
+                    stats: {
+                        totalSubmissions: 0,
+                        totalAccepted: 0,
+                        points: 0,
+                        completedProblems: []
+                    }
+                }, { merge: true });
             }
         } catch(err) {
-            console.warn("[Admin Access Warning]: Could not fetch admin status.", err);
+            console.warn("[Admin/Profile Sync Warning]: Could not fetch/sync status.", err);
             window.isAdmin = false;
         }
     } else {
@@ -65,6 +90,30 @@ const defaultPrb = [
         },
         tests: [ { i: "5", e: "1 3 6 10 15" }, { i: "3", e: "1 3 6" }, { i: "1", e: "1" } ],
         hiddenTests: [ { i: "7", e: "1 3 6 10 15 21 28" }, { i: "10", e: "1 3 6 10 15 21 28 36 45 55" } ]
+    },
+    {
+        id: "B_Max_Subarray_Sum",
+        difficulty: "Medium",
+        desc: "<h3>B. Max Subarray Sum</h3><p>Given an array of integers, find the contiguous subarray (containing at least one number) which has the largest sum and return its sum.</p><p><strong>Input Format:</strong><br>First line contains integer <code>n</code> (1 &le; <code>n</code> &le; 10<sup>5</sup>).<br>Second line contains <code>n</code> space-separated integers.</p><p><strong>Output Format:</strong><br>Output a single integer representing the maximum subarray sum.</p>",
+        code: {
+            cpp: "#include <iostream>\n#include <vector>\n#include <algorithm>\nusing namespace std;\nint main() {\n    int n;\n    if (!(cin >> n)) return 0;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    long long max_so_far = a[0];\n    long long curr_max = a[0];\n    for (int i = 1; i < n; i++) {\n        curr_max = max(a[i], curr_max + a[i]);\n        max_so_far = max(max_so_far, curr_max);\n    }\n    cout << max_so_far << endl;\n    return 0;\n}",
+            python: "import sys\ndef solve():\n    lines = sys.stdin.read().split()\n    if not lines:\n        return\n    n = int(lines[0])\n    a = [int(x) for x in lines[1:]]\n    max_so_far = a[0]\n    curr_max = a[0]\n    for i in range(1, n):\n        curr_max = max(a[i], curr_max + a[i])\n        max_so_far = max(max_so_far, curr_max)\n    print(max_so_far)\nif __name__ == '__main__':\n    solve()",
+            java: "import java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        if (!sc.hasNextInt()) return;\n        int n = sc.nextInt();\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            a[i] = sc.nextLong();\n        }\n        long maxSoFar = a[0];\n        long currMax = a[0];\n        for (int i = 1; i < n; i++) {\n            currMax = Math.max(a[i], currMax + a[i]);\n            maxSoFar = Math.max(maxSoFar, currMax);\n        }\n        System.out.println(maxSoFar);\n    }\n}"
+        },
+        tests: [ { i: "8\n-2 -3 4 -1 -2 1 5 -3", e: "7" }, { i: "5\n1 2 3 4 5", e: "15" }, { i: "3\n-1 -2 -3", e: "-1" } ],
+        hiddenTests: [ { i: "9\n-2 1 -3 4 -1 2 1 -5 4", e: "6" }, { i: "1\n42", e: "42" } ]
+    },
+    {
+        id: "C_Edit_Distance",
+        difficulty: "Hard",
+        desc: "<h3>C. Edit Distance</h3><p>Given two strings <code>word1</code> and <code>word2</code>, return the minimum number of operations required to convert <code>word1</code> to <code>word2</code>.</p><p>You have the following three operations permitted on a word:<br>1. Insert a character<br>2. Delete a character<br>3. Replace a character</p><p><strong>Input Format:</strong><br>First line contains string <code>word1</code>.<br>Second line contains string <code>word2</code>.</p><p><strong>Output Format:</strong><br>Output a single integer representing the minimum edit distance.</p>",
+        code: {
+            cpp: "#include <iostream>\n#include <string>\n#include <vector>\n#include <algorithm>\nusing namespace std;\nint main() {\n    string s1, s2;\n    if (!(cin >> s1 >> s2)) {\n        if (s1.empty() && s2.empty()) {\n            cout << 0 << endl;\n            return 0;\n        }\n    }\n    int m = s1.length();\n    int n = s2.length();\n    vector<vector<int>> dp(m + 1, vector<int>(n + 1));\n    for (int i = 0; i <= m; i++) dp[i][0] = i;\n    for (int j = 0; j <= n; j++) dp[0][j] = j;\n    for (int i = 1; i <= m; i++) {\n        for (int j = 1; j <= n; j++) {\n            if (s1[i-1] == s2[j-1]) {\n                dp[i][j] = dp[i-1][j-1];\n            } else {\n                dp[i][j] = 1 + min({dp[i-1][j], dp[i][j-1], dp[i-1][j-1]});\n            }\n        }\n    }\n    cout << dp[m][n] << endl;\n    return 0;\n}",
+            python: "import sys\ndef solve():\n    lines = sys.stdin.read().split()\n    if not lines:\n        print(0)\n        return\n    s1 = lines[0] if len(lines) > 0 else \"\"\n    s2 = lines[1] if len(lines) > 1 else \"\"\n    m, n = len(s1), len(s2)\n    dp = [[0] * (n + 1) for _ in range(m + 1)]\n    for i in range(m + 1):\n        dp[i][0] = i\n    for j in range(n + 1):\n        dp[0][j] = j\n    for i in range(1, m + 1):\n        for j in range(1, n + 1):\n            if s1[i-1] == s2[j-1]:\n                dp[i][j] = dp[i-1][j-1]\n            else:\n                dp[i][j] = 1 + min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])\n    print(dp[m][n])\nif __name__ == '__main__':\n    solve()",
+            java: "import java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        String s1 = sc.hasNext() ? sc.next() : \"\";\n        String s2 = sc.hasNext() ? sc.next() : \"\";\n        int m = s1.length();\n        int n = s2.length();\n        int[][] dp = new int[m + 1][n + 1];\n        for (int i = 0; i <= m; i++) dp[i][0] = i;\n        for (int j = 0; j <= n; j++) dp[0][j] = j;\n        for (int i = 1; i <= m; i++) {\n            for (int j = 1; j <= n; j++) {\n                if (s1.charAt(i-1) == s2.charAt(j-1)) {\n                    dp[i][j] = dp[i-1][j-1];\n                } else {\n                    dp[i][j] = 1 + Math.min(dp[i-1][j], Math.min(dp[i][j-1], dp[i-1][j-1]));\n                } \n            }\n        }\n        System.out.println(dp[m][n]);\n    }\n}"
+        },
+        tests: [ { i: "horse\nros", e: "3" }, { i: "intention\nexecution", e: "5" }, { i: "a\nb", e: "1" } ],
+        hiddenTests: [ { i: "abracadabra\ncadabra", e: "4" }, { i: "dynamic\nprogramming", e: "9" } ]
     }
 ];
 
@@ -196,7 +245,15 @@ window.loadProblem = function() {
     let x = document.getElementById('pSel').value;
     let l = document.getElementById('lSel').value;
     let p = prb[x];
-    document.getElementById('pDsc').innerHTML = p.desc;
+    if (!p) return;
+
+    // Dynamically insert the difficulty badge next to the <h3> title
+    let diff = p.difficulty || "Unknown";
+    let diffClass = diff.toLowerCase();
+    let badgeHtml = ` <span class="diff-badge ${diffClass}" style="margin-left: 8px; font-size: 0.7rem; padding: 2px 8px; vertical-align: middle; height: auto;">${diff}</span>`;
+    
+    let updatedDesc = p.desc.replace("</h3>", `${badgeHtml}</h3>`);
+    document.getElementById('pDsc').innerHTML = updatedDesc;
     document.getElementById('stdInput').value = p.tests[0].i;
     document.getElementById('expectedOutput').value = p.tests[0].e;
     if (window.editor) {
@@ -233,6 +290,7 @@ window.loadProblem = function() {
         }
     }
     
+    if (window.updateProblemStats) window.updateProblemStats();
     window.saveState();
 };
 
@@ -340,7 +398,7 @@ window.runCode = async function(isSubmit = false) {
                 b.innerText = "🔒 Failed Hidden Test"; b.style.color = "#f59e0b"; statusMsg = "Failed Hidden Test";
             }
 
-            window.saveSubmission(p.desc.split("</h3>")[0].replace("<h3>", ""), l, maxTime, statusMsg, allPassed);
+            window.saveSubmission(p.id, p.desc.split("</h3>")[0].replace("<h3>", ""), l, maxTime, statusMsg, allPassed);
         } else {
             b.innerText = allPassed ? "🏆 All Tests Passed" : "❌ Tests Failed";
             b.style.color = allPassed ? "#22c55e" : "#ef4444";
@@ -348,9 +406,9 @@ window.runCode = async function(isSubmit = false) {
     }
 };
 
-window.saveSubmission = async (problemName, lang, timeMs, statusStr, isAccepted) => {
+window.saveSubmission = async (problemId, problemName, lang, timeMs, statusStr, isAccepted) => {
     let code = window.editor ? window.editor.getValue() : "";
-    await sendStats(problemName, lang, timeMs, statusStr, isAccepted, code);
+    await sendStats(problemId, problemName, lang, timeMs, statusStr, isAccepted, code);
     // Refresh stats and submission history instantly
     setTimeout(window.updateProblemStats, 800);
 };
@@ -654,20 +712,21 @@ window.updateProblemStats = async () => {
     let html = "";
     if (stats.userSubmissions && stats.userSubmissions.length > 0) {
         stats.userSubmissions.forEach(sub => {
+            let statusVal = sub.status || "Accepted";
             let statusColor = "var(--danger)";
             let statusIcon = `
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:2px;">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                 </svg>
             `;
-            if (sub.status === "Accepted") {
+            if (statusVal === "Accepted") {
                 statusColor = "var(--success)";
                 statusIcon = `
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:2px;">
                         <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                     </svg>
                 `;
-            } else if (sub.status.includes("Pending") || sub.status.includes("Running")) {
+            } else if (statusVal.includes("Pending") || statusVal.includes("Running")) {
                 statusColor = "var(--text-muted)";
                 statusIcon = `
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:2px;">
@@ -676,16 +735,23 @@ window.updateProblemStats = async () => {
                 `;
             }
 
-            let dateStr = new Date(sub.timestamp).toLocaleDateString(undefined, {
-                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-            });
+            let dateStr = "Unknown Date";
+            if (sub.timestamp) {
+                try {
+                    dateStr = new Date(sub.timestamp).toLocaleDateString(undefined, {
+                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                    });
+                } catch(e) {
+                    console.error("Invalid timestamp:", sub.timestamp, e);
+                }
+            }
 
             // Modern glassmorphic row card with code action elements
             html += `
                 <div class="bx" style="padding: 12px; background: rgba(255,255,255,0.01); display: flex; flex-direction: column; gap: 8px; border-color: rgba(255,255,255,0.03); margin-bottom: 2px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="color:${statusColor}; font-weight: 800; font-size: 0.8rem; display: inline-flex; align-items: center;">
-                            ${statusIcon} ${sub.status}
+                            ${statusIcon} ${statusVal}
                         </span>
                         <span style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">${sub.time}ms | ${sub.language.toUpperCase()}</span>
                     </div>
@@ -757,4 +823,83 @@ window.restoreSubmittedCode = (subId) => {
         window.saveState();
         alert("Submission code loaded successfully into editor!");
     }
+};
+
+// --- PREMIUM LEADERBOARD ACTIONS ---
+window.openLeaderboard = async function() {
+    document.getElementById('leaderboardMod').style.display = "flex";
+    await window.updateLeaderboardUI();
+};
+
+window.closeLeaderboard = function() {
+    document.getElementById('leaderboardMod').style.display = "none";
+};
+
+window.updateLeaderboardUI = async function() {
+    let leaderboardBody = document.getElementById('leaderboardBody');
+    if (!leaderboardBody) return;
+
+    leaderboardBody.innerHTML = `
+        <tr>
+            <td colspan="4" style="text-align: center; padding: 40px 0; color: var(--text-muted);">
+                <div class="loader" style="border: 3px solid rgba(255,255,255,0.05); border-radius: 50%; border-top: 3px solid var(--accent); width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 0 auto 10px auto;"></div>
+                Fetching leaderboard rankings...
+            </td>
+        </tr>
+    `;
+
+    let data = await fetchLeaderboard();
+    if (!data || data.length === 0) {
+        leaderboardBody.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align: center; padding: 40px 0; color: var(--text-muted);">
+                    No developers on the leaderboard yet. Be the first to solve a problem!
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    let html = "";
+    data.forEach((user, index) => {
+        let rank = index + 1;
+        let rankClass = "rank-other";
+        let rankContent = rank;
+
+        if (rank === 1) {
+            rankClass = "rank-1";
+            rankContent = "🏆";
+        } else if (rank === 2) {
+            rankClass = "rank-2";
+            rankContent = "🥈";
+        } else if (rank === 3) {
+            rankClass = "rank-3";
+            rankContent = "🥉";
+        }
+
+        let isCurrentUser = au.currentUser && au.currentUser.uid === user.uid;
+        let rowClass = isCurrentUser ? "curr-user-row" : "";
+        let avatarHtml = user.photoURL 
+            ? `<img src="${user.photoURL}" style="width:28px; height:28px; border-radius:50%; margin-right:10px; vertical-align:middle; border: 1px solid rgba(255,255,255,0.1);">` 
+            : `<div style="width:28px; height:28px; border-radius:50%; background:var(--accent-bg); color:var(--accent); display:inline-flex; align-items:center; justify-content:center; font-weight:800; font-size:0.75rem; margin-right:10px; vertical-align:middle;">${user.displayName.charAt(0).toUpperCase()}</div>`;
+
+        html += `
+            <tr class="${rowClass}">
+                <td style="padding: 14px 8px;"><span class="rank-badge ${rankClass}">${rankContent}</span></td>
+                <td style="padding: 14px 8px; font-weight: 700; color: var(--text-main);">
+                    ${avatarHtml}
+                    <span style="${isCurrentUser ? 'color: var(--accent);' : ''}">${user.displayName}</span>
+                    ${isCurrentUser ? ' <span style="font-size:0.68rem; padding:2px 6px; background:var(--accent-bg); color:var(--accent); border-radius:4px; font-weight:bold; margin-left:4px;">You</span>' : ''}
+                </td>
+                <td style="padding: 14px 8px; text-align: center; color: var(--text-muted); font-weight: 600;">
+                    <span style="color: var(--success);">${user.totalAccepted}</span> / <span style="font-size:0.8rem;">${user.totalSubmissions}</span>
+                </td>
+                <td style="padding: 14px 8px; text-align: right; font-weight: 800; font-family: var(--font-heading); font-size: 1.05rem; color: var(--warning);">
+                    ${user.points} <span style="font-size:0.72rem; color:var(--text-dark); font-weight:600;">pts</span>
+                </td>
+            </tr>
+        `;
+    });
+
+    leaderboardBody.innerHTML = html;
 };

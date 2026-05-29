@@ -16,7 +16,7 @@ export const executeCode = async (code, inputs, language) => {
 };
 
 // 2. Securely save stats to your backend
-export const sendStats = async (problemName, lang, timeMs, statusStr, isAccepted, code) => {
+export const sendStats = async (problemId, problemName, lang, timeMs, statusStr, isAccepted, code) => {
     if (!au.currentUser) return; 
     try {
         let tk = await au.currentUser.getIdToken();
@@ -26,7 +26,7 @@ export const sendStats = async (problemName, lang, timeMs, statusStr, isAccepted
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${tk}` 
             },
-            body: JSON.stringify({ problem: problemName, language: lang, time: timeMs, status: statusStr, isAccepted, code })
+            body: JSON.stringify({ problemId, problem: problemName, language: lang, time: timeMs, status: statusStr, isAccepted, code })
         });
     } catch (e) {
         console.error("Failed to send stats:", e);
@@ -52,6 +52,17 @@ export const fetchProblemStats = async (problemName) => {
         return await r.json();
     } catch (e) {
         console.error("Failed to fetch problem stats:", e);
+        return null;
+    }
+};
+
+// --- Fetch global leaderboard data ---
+export const fetchLeaderboard = async () => {
+    try {
+        let r = await fetch('http://localhost:3000/leaderboard');
+        return await r.json();
+    } catch (e) {
+        console.error("Failed to fetch leaderboard:", e);
         return null;
     }
 };

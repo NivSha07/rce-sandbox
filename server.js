@@ -17,7 +17,67 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 const db = admin.firestore();
-// ----------------------------
+
+// --- DATABASE SEEDER FOR PUBLIC PROBLEMS ---
+const seedDatabase = async () => {
+    try {
+        const seedProblems = [
+            {
+                id: "A_Array_Prefix_Sums",
+                difficulty: "Easy",
+                desc: "<h3>A. Array Prefix Sums</h3><p>Output an array of size <code>n</code> where the <code>i-th</code> element is the sum of integers from 1 to i.</p>",
+                code: {
+                    cpp: "#include<bits/stdc++.h>\nusing namespace std;\nint main(){\n    int n; cin>>n;\n    long long s=0;\n    for(int i=1;i<=n;i++){ s+=i; cout<<s<<\" \"; }\n    return 0;\n}",
+                    python: "n = int(input())\ns = 0\nfor i in range(1, n+1):\n    s += i\n    print(s, end=\" \")",
+                    java: "import java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int n = sc.nextInt();\n        long s = 0;\n        for(int i=1; i<=n; i++) {\n            s += i;\n            System.out.print(s + \" \");\n        }\n    }\n}"
+                },
+                tests: [ { i: "5", e: "1 3 6 10 15" }, { i: "3", e: "1 3 6" }, { i: "1", e: "1" } ],
+                hiddenTests: [ { i: "7", e: "1 3 6 10 15 21 28" }, { i: "10", e: "1 3 6 10 15 21 28 36 45 55" } ]
+            },
+            {
+                id: "B_Max_Subarray_Sum",
+                difficulty: "Medium",
+                desc: "<h3>B. Max Subarray Sum</h3><p>Given an array of integers, find the contiguous subarray (containing at least one number) which has the largest sum and return its sum.</p><p><strong>Input Format:</strong><br>First line contains integer <code>n</code> (1 &le; <code>n</code> &le; 10<sup>5</sup>).<br>Second line contains <code>n</code> space-separated integers.</p><p><strong>Output Format:</strong><br>Output a single integer representing the maximum subarray sum.</p>",
+                code: {
+                    cpp: "#include <iostream>\n#include <vector>\n#include <algorithm>\nusing namespace std;\nint main() {\n    int n;\n    if (!(cin >> n)) return 0;\n    vector<long long> a(n);\n    for (int i = 0; i < n; i++) cin >> a[i];\n    long long max_so_far = a[0];\n    long long curr_max = a[0];\n    for (int i = 1; i < n; i++) {\n        curr_max = max(a[i], curr_max + a[i]);\n        max_so_far = max(max_so_far, curr_max);\n    }\n    cout << max_so_far << endl;\n    return 0;\n}",
+                    python: "import sys\ndef solve():\n    lines = sys.stdin.read().split()\n    if not lines:\n        return\n    n = int(lines[0])\n    a = [int(x) for x in lines[1:]]\n    max_so_far = a[0]\n    curr_max = a[0]\n    for i in range(1, n):\n        curr_max = max(a[i], curr_max + a[i])\n        max_so_far = max(max_so_far, curr_max)\n    print(max_so_far)\nif __name__ == '__main__':\n    solve()",
+                    java: "import java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        if (!sc.hasNextInt()) return;\n        int n = sc.nextInt();\n        long[] a = new long[n];\n        for (int i = 0; i < n; i++) {\n            a[i] = sc.nextLong();\n        }\n        long maxSoFar = a[0];\n        long currMax = a[0];\n        for (int i = 1; i < n; i++) {\n            currMax = Math.max(a[i], currMax + a[i]);\n            maxSoFar = Math.max(maxSoFar, currMax);\n        }\n        System.out.println(maxSoFar);\n    }\n}"
+                },
+                tests: [ { i: "8\n-2 -3 4 -1 -2 1 5 -3", e: "7" }, { i: "5\n1 2 3 4 5", e: "15" }, { i: "3\n-1 -2 -3", e: "-1" } ],
+                hiddenTests: [ { i: "9\n-2 1 -3 4 -1 2 1 -5 4", e: "6" }, { i: "1\n42", e: "42" } ]
+            },
+            {
+                id: "C_Edit_Distance",
+                difficulty: "Hard",
+                desc: "<h3>C. Edit Distance</h3><p>Given two strings <code>word1</code> and <code>word2</code>, return the minimum number of operations required to convert <code>word1</code> to <code>word2</code>.</p><p>You have the following three operations permitted on a word:<br>1. Insert a character<br>2. Delete a character<br>3. Replace a character</p><p><strong>Input Format:</strong><br>First line contains string <code>word1</code>.<br>Second line contains string <code>word2</code>.</p><p><strong>Output Format:</strong><br>Output a single integer representing the minimum edit distance.</p>",
+                code: {
+                    cpp: "#include <iostream>\n#include <string>\n#include <vector>\n#include <algorithm>\nusing namespace std;\nint main() {\n    string s1, s2;\n    if (!(cin >> s1 >> s2)) {\n        if (s1.empty() && s2.empty()) {\n            cout << 0 << endl;\n            return 0;\n        }\n    }\n    int m = s1.length();\n    int n = s2.length();\n    vector<vector<int>> dp(m + 1, vector<int>(n + 1));\n    for (int i = 0; i <= m; i++) dp[i][0] = i;\n    for (int j = 0; j <= n; j++) dp[0][j] = j;\n    for (int i = 1; i <= m; i++) {\n        for (int j = 1; j <= n; j++) {\n            if (s1[i-1] == s2[j-1]) {\n                dp[i][j] = dp[i-1][j-1];\n            } else {\n                dp[i][j] = 1 + min({dp[i-1][j], dp[i][j-1], dp[i-1][j-1]});\n            }\n        }\n    }\n    cout << dp[m][n] << endl;\n    return 0;\n}",
+                    python: "import sys\ndef solve():\n    lines = sys.stdin.read().split()\n    if not lines:\n        print(0)\n        return\n    s1 = lines[0] if len(lines) > 0 else \"\"\n    s2 = lines[1] if len(lines) > 1 else \"\"\n    m, n = len(s1), len(s2)\n    dp = [[0] * (n + 1) for _ in range(m + 1)]\n    for i in range(m + 1):\n        dp[i][0] = i\n    for j in range(n + 1):\n        dp[0][j] = j\n    for i in range(1, m + 1):\n        for j in range(1, n + 1):\n            if s1[i-1] == s2[j-1]:\n                dp[i][j] = dp[i-1][j-1]\n            else:\n                dp[i][j] = 1 + min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])\n    print(dp[m][n])\nif __name__ == '__main__':\n    solve()",
+                    java: "import java.util.Scanner;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        String s1 = sc.hasNext() ? sc.next() : \"\";\n        String s2 = sc.hasNext() ? sc.next() : \"\";\n        int m = s1.length();\n        int n = s2.length();\n        int[][] dp = new int[m + 1][n + 1];\n        for (int i = 0; i <= m; i++) dp[i][0] = i;\n        for (int j = 0; j <= n; j++) dp[0][j] = j;\n        for (int i = 1; i <= m; i++) {\n            for (int j = 1; j <= n; j++) {\n                if (s1.charAt(i-1) == s2.charAt(j-1)) {\n                    dp[i][j] = dp[i-1][j-1];\n                } else {\n                    dp[i][j] = 1 + Math.min(dp[i-1][j], Math.min(dp[i][j-1], dp[i-1][j-1]));\n                } \n            }\n        }\n        System.out.println(dp[m][n]);\n    }\n}"
+                },
+                tests: [ { i: "horse\nros", e: "3" }, { i: "intention\nexecution", e: "5" }, { i: "a\nb", e: "1" } ],
+                hiddenTests: [ { i: "abracadabra\ncadabra", e: "4" }, { i: "dynamic\nprogramming", e: "9" } ]
+            }
+        ];
+
+        for (const prob of seedProblems) {
+            const docRef = db.collection('problems').doc(prob.id);
+            const docSnap = await docRef.get();
+            if (!docSnap.exists) {
+                await docRef.set(prob);
+                console.log(`[Database Seeder]: Seeded problem ${prob.id} successfully.`);
+            } else {
+                // Ensure difficulty and other fields match in case they were created incorrectly earlier
+                await docRef.set(prob, { merge: true });
+                console.log(`[Database Seeder]: Synced problem ${prob.id}.`);
+            }
+        }
+    } catch(e) {
+        console.error("[Database Seeder Error]:", e);
+    }
+};
+seedDatabase();
+// -------------------------------------------
 
 const app = express();
 app.use(cors());
@@ -169,12 +229,13 @@ app.post('/save-stat', async (req, res) => {
         let decodedToken = await admin.auth().verifyIdToken(token);
         let uid = decodedToken.uid;
 
-        let { problem, language, time, status, isAccepted, code } = req.body;
+        let { problem, problemId, language, time, status, isAccepted, code } = req.body;
 
         // 1. Log the submission
         await db.collection('submissions').add({
             uid: uid, 
             problem: problem, 
+            problemId: problemId || "",
             language: language, 
             status: status, 
             time: time, 
@@ -182,15 +243,55 @@ app.post('/save-stat', async (req, res) => {
             code: code || ""
         });
 
-        // 2. Safely increment user profile stats
+        // 2. Safely increment user profile stats and leaderboard points
         let userRef = db.collection('users').doc(uid);
         let userDoc = await userRef.get();
+        
+        let userData = userDoc.exists ? userDoc.data() : {};
+        let stats = userData.stats || { totalSubmissions: 0, totalAccepted: 0, points: 0, completedProblems: [] };
+        
+        let completedProblems = stats.completedProblems || [];
+        let earnedPoints = 0;
+        let newlyCompleted = false;
+
+        if (isAccepted && problemId) {
+            if (!completedProblems.includes(problemId)) {
+                // Verify if this is a public problem in the public 'problems' collection
+                let problemDoc = await db.collection('problems').doc(problemId).get();
+                if (problemDoc.exists) {
+                    newlyCompleted = true;
+                    completedProblems.push(problemId);
+                    
+                    let difficulty = problemDoc.data().difficulty || "Easy";
+                    if (difficulty === "Easy") earnedPoints = 1;
+                    else if (difficulty === "Medium") earnedPoints = 3;
+                    else if (difficulty === "Hard") earnedPoints = 5;
+                    
+                    console.log(`[Points Engine]: User ${uid} successfully solved public problem ${problemId} (${difficulty}). Awarding ${earnedPoints} points.`);
+                }
+            }
+        }
 
         if (!userDoc.exists) {
-            await userRef.set({ stats: { totalSubmissions: 1, totalAccepted: isAccepted ? 1 : 0 } });
+            await userRef.set({
+                stats: {
+                    totalSubmissions: 1,
+                    totalAccepted: isAccepted ? 1 : 0,
+                    points: earnedPoints,
+                    completedProblems: completedProblems
+                }
+            }, { merge: true });
         } else {
-            let updates = { "stats.totalSubmissions": admin.firestore.FieldValue.increment(1) };
-            if (isAccepted) updates["stats.totalAccepted"] = admin.firestore.FieldValue.increment(1);
+            let updates = {
+                "stats.totalSubmissions": admin.firestore.FieldValue.increment(1)
+            };
+            if (isAccepted) {
+                updates["stats.totalAccepted"] = admin.firestore.FieldValue.increment(1);
+            }
+            if (newlyCompleted) {
+                updates["stats.points"] = admin.firestore.FieldValue.increment(earnedPoints);
+                updates["stats.completedProblems"] = completedProblems;
+            }
             await userRef.update(updates);
         }
 
@@ -268,6 +369,41 @@ app.get('/problem-stats/:problemName', async (req, res) => {
     }
 });
 // -------------------------------------
+
+// --- GET GLOBAL LEADERBOARD API ---
+app.get('/leaderboard', async (req, res) => {
+    try {
+        let usersSnap = await db.collection('users').get();
+        let leaderboard = [];
+        usersSnap.forEach(docSnap => {
+            let data = docSnap.data();
+            // Only list users that have some displayName or stats
+            if (data.displayName || data.stats) {
+                leaderboard.push({
+                    uid: docSnap.id,
+                    displayName: data.displayName || "Anonymous Developer",
+                    photoURL: data.photoURL || "",
+                    points: data.stats?.points || 0,
+                    totalAccepted: data.stats?.totalAccepted || 0,
+                    totalSubmissions: data.stats?.totalSubmissions || 0
+                });
+            }
+        });
+        
+        // Sort descending by points, then by totalAccepted, then alphabetically
+        leaderboard.sort((a, b) => {
+            if (b.points !== a.points) return b.points - a.points;
+            if (b.totalAccepted !== a.totalAccepted) return b.totalAccepted - a.totalAccepted;
+            return a.displayName.localeCompare(b.displayName);
+        });
+        
+        res.json(leaderboard);
+    } catch(e) {
+        console.error("Error fetching leaderboard:", e);
+        res.status(500).json({ error: "Failed to fetch leaderboard" });
+    }
+});
+// ----------------------------------
 
 const { spawn } = require('child_process');
 const judgeDaemon = spawn('./judge/judge.exe');
